@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
-import { PlusCircle, LogOut, TrendingUp, DollarSign, Wrench, Trash2, Calendar, User, Bike, Edit, ChevronDown, ChevronUp, Filter, Receipt, Copy, Printer, Check, Download, X, Menu, Settings, Tag } from 'lucide-react';
+import { PlusCircle, LogOut, TrendingUp, DollarSign, Wrench, Trash2, Calendar, User, Bike, Edit, ChevronDown, ChevronUp, Filter, Receipt, Copy, Printer, Check, Download, X, Menu, Tag, LayoutDashboard, History } from 'lucide-react';
 import Image from 'next/image';
 
 const SHOP_TARGET = 25000;
@@ -51,10 +51,14 @@ interface Job {
 }
 
 type DateFilterType = 'today' | 'week' | 'month' | 'custom' | 'all';
+type ViewMode = 'dashboard' | 'history';
 
 export default function Home() {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Active View Mode
+  const [currentView, setCurrentView] = useState<ViewMode>('dashboard');
 
   // Auth fields
   const [email, setEmail] = useState('');
@@ -205,7 +209,6 @@ export default function Home() {
     }
   };
 
-  // Service Row Handlers
   const handleAddServiceRow = () => {
     setSelectedServices([
       ...selectedServices,
@@ -259,7 +262,6 @@ export default function Home() {
     setSelectedServices(updated);
   };
 
-  // Parts Row Handlers
   const handleAddPartRow = () => {
     setPartsList([...partsList, { name: '', price: 0 }]);
   };
@@ -336,7 +338,6 @@ export default function Home() {
     }
   };
 
-  // Labor Pricing Handlers
   const handleSavePreset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!presetName.trim()) {
@@ -423,7 +424,6 @@ export default function Home() {
     setTimeout(() => setCopiedReceipt(false), 2500);
   };
 
-  // Date Filtering Logic
   const filteredJobs = useMemo(() => {
     if (dateFilter === 'all') return jobs;
 
@@ -593,13 +593,12 @@ export default function Home() {
     );
   }
 
-  // DASHBOARD & LOG BOOK VIEW
+  // APP VIEW
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 pb-28 print:bg-white print:text-black print:pb-0">
-      {/* Header with Hamburger Menu Button */}
+      {/* Header */}
       <header className="bg-slate-900/95 backdrop-blur border-b border-slate-800/80 px-4 py-3 sticky top-0 z-30 flex justify-between items-center print:hidden">
         <div className="flex items-center gap-2.5">
-          {/* Hamburger Icon */}
           <button
             onClick={() => setMenuOpen(true)}
             className="p-2 text-slate-300 hover:text-white rounded-xl active:bg-slate-800 transition -ml-1.5"
@@ -613,7 +612,8 @@ export default function Home() {
             alt="96 Works Logo"
             width={95}
             height={38}
-            className="h-8 sm:h-9 w-auto object-contain"
+            className="h-8 sm:h-9 w-auto object-contain cursor-pointer"
+            onClick={() => setCurrentView('dashboard')}
             priority
           />
           <span className="text-[10px] sm:text-xs text-slate-400 border-l border-slate-700 pl-2 hidden min-[380px]:inline">
@@ -635,7 +635,35 @@ export default function Home() {
         </div>
       </header>
 
-      {/* SLIDE-OUT MOBILE / DESKTOP NAVIGATION DRAWER */}
+      {/* TOP VIEW SWITCHER TABS (Dashboard vs History Logs) */}
+      <div className="max-w-4xl mx-auto px-3.5 pt-3 print:hidden">
+        <div className="bg-slate-900 p-1 rounded-2xl border border-slate-800 flex gap-1">
+          <button
+            onClick={() => setCurrentView('dashboard')}
+            className={`flex-1 py-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition ${
+              currentView === 'dashboard'
+                ? 'bg-amber-500 text-slate-950 shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            <span>Dashboard</span>
+          </button>
+          <button
+            onClick={() => setCurrentView('history')}
+            className={`flex-1 py-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition ${
+              currentView === 'history'
+                ? 'bg-amber-500 text-slate-950 shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <History className="w-3.5 h-3.5" />
+            <span>History Logs ({jobs.length})</span>
+          </button>
+        </div>
+      </div>
+
+      {/* SLIDE-OUT MENU DRAWER */}
       {menuOpen && (
         <div className="fixed inset-0 z-50 flex">
           <div
@@ -662,17 +690,35 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* Navigation Links */}
               <nav className="space-y-1 text-sm font-semibold">
                 <button
                   onClick={() => {
+                    setCurrentView('dashboard');
                     setMenuOpen(false);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition text-left"
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition text-left ${
+                    currentView === 'dashboard'
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                      : 'text-slate-300 hover:bg-slate-800'
+                  }`}
                 >
-                  <TrendingUp className="w-4 h-4 text-amber-500" />
+                  <LayoutDashboard className="w-4 h-4 text-amber-500" />
                   <span>Dashboard & ROI</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setCurrentView('history');
+                    setMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition text-left ${
+                    currentView === 'history'
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                      : 'text-slate-300 hover:bg-slate-800'
+                  }`}
+                >
+                  <History className="w-4 h-4 text-amber-500" />
+                  <span>View History Logs</span>
                 </button>
 
                 <button
@@ -690,20 +736,6 @@ export default function Home() {
                 <button
                   onClick={() => {
                     setMenuOpen(false);
-                    const historyElement = document.getElementById('log-history-section');
-                    if (historyElement) {
-                      historyElement.scrollIntoView({ behavior: 'smooth' });
-                    }
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition text-left"
-                >
-                  <Calendar className="w-4 h-4 text-amber-500" />
-                  <span>View History Logs</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
                     setShowPricingModal(true);
                   }}
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition text-left"
@@ -714,7 +746,6 @@ export default function Home() {
               </nav>
             </div>
 
-            {/* Logout Footer */}
             <div className="pt-4 border-t border-slate-800">
               <button
                 onClick={handleLogout}
@@ -728,11 +759,329 @@ export default function Home() {
         </div>
       )}
 
+      {/* VIEW 1: DASHBOARD ONLY */}
+      {currentView === 'dashboard' && (
+        <div className="max-w-4xl mx-auto p-3.5 sm:p-5 space-y-4 sm:space-y-6 print:hidden">
+          {/* ROI Progress */}
+          <section className="bg-slate-900 border border-slate-800/90 rounded-2xl p-4 sm:p-5 shadow-lg">
+            <div className="flex justify-between items-baseline mb-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-amber-500" /> ROI Progress
+              </span>
+              <span className="text-xs font-extrabold text-amber-400">{progressPercent.toFixed(1)}%</span>
+            </div>
+
+            <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden mb-3">
+              <div
+                className="bg-amber-500 h-full rounded-full transition-all duration-500"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4 pt-2 border-t border-slate-800/80">
+              <div className="bg-slate-950/40 p-2 rounded-xl border border-slate-800/50">
+                <div className="text-[10px] text-slate-400 uppercase font-medium">Target</div>
+                <div className="text-sm sm:text-base font-bold">₱{SHOP_TARGET.toLocaleString()}</div>
+              </div>
+              <div className="bg-slate-950/40 p-2 rounded-xl border border-slate-800/50">
+                <div className="text-[10px] text-slate-400 uppercase font-medium">Recovered</div>
+                <div className="text-sm sm:text-base font-bold text-emerald-400">₱{totalRecovered.toLocaleString()}</div>
+              </div>
+              <div className="bg-slate-950/40 p-2 rounded-xl border border-slate-800/50">
+                <div className="text-[10px] text-slate-400 uppercase font-medium">Remaining</div>
+                <div className="text-sm sm:text-base font-bold text-amber-400">₱{remainingTarget.toLocaleString()}</div>
+              </div>
+              <div className="bg-slate-950/40 p-2 rounded-xl border border-slate-800/50">
+                <div className="text-[10px] text-slate-400 uppercase font-medium">Total Jobs</div>
+                <div className="text-sm sm:text-base font-bold">{jobs.length}</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-800 text-xs text-slate-300">
+              <div className="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800/60">
+                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Your Share (40%)</span>
+                <span className="font-bold text-emerald-400 text-sm">₱{(totalRecovered * USER_SPLIT_PERCENT).toLocaleString()}</span>
+                <span className="text-[10px] text-slate-500 block">Cap: ₱10,000</span>
+              </div>
+              <div className="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800/60">
+                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Partner Share (60%)</span>
+                <span className="font-bold text-emerald-400 text-sm">₱{(totalRecovered * PARTNER_SPLIT_PERCENT).toLocaleString()}</span>
+                <span className="text-[10px] text-slate-500 block">Cap: ₱15,000</span>
+              </div>
+            </div>
+          </section>
+
+          {/* All-time Revenue Stats */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-slate-900 border border-slate-800/80 p-3 rounded-2xl text-center">
+              <span className="text-[10px] text-slate-400 flex items-center justify-center gap-1 mb-0.5">
+                <Wrench className="w-3 h-3 text-amber-500" /> All Labor
+              </span>
+              <div className="text-sm sm:text-lg font-bold">₱{jobs.reduce((s, j) => s + Number(j.customer_labor || 0), 0).toLocaleString()}</div>
+            </div>
+            <div className="bg-slate-900 border border-slate-800/80 p-3 rounded-2xl text-center">
+              <span className="text-[10px] text-slate-400 flex items-center justify-center gap-1 mb-0.5">
+                <DollarSign className="w-3 h-3 text-blue-400" /> All Parts
+              </span>
+              <div className="text-sm sm:text-lg font-bold">₱{jobs.reduce((s, j) => s + Number(j.parts_sales || 0), 0).toLocaleString()}</div>
+            </div>
+            <div className="bg-slate-900 border border-slate-800/80 p-3 rounded-2xl text-center">
+              <span className="text-[10px] text-slate-400 flex items-center justify-center gap-1 mb-0.5">
+                <TrendingUp className="w-3 h-3 text-emerald-400" /> All ROI
+              </span>
+              <div className="text-sm sm:text-lg font-bold text-emerald-400">₱{totalRecovered.toLocaleString()}</div>
+            </div>
+          </div>
+
+          {/* Quick link button to History view */}
+          <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 text-center space-y-2">
+            <p className="text-xs text-slate-400">Want to inspect individual customer tickets, receipts, or export CSV?</p>
+            <button
+              onClick={() => setCurrentView('history')}
+              className="py-2 px-4 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 rounded-xl text-xs font-bold transition inline-flex items-center gap-1.5"
+            >
+              <History className="w-4 h-4" />
+              <span>Go to Complete History Logs</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW 2: DEDICATED HISTORY LOGS ONLY */}
+      {currentView === 'history' && (
+        <div className="max-w-4xl mx-auto p-3.5 sm:p-5 space-y-4 print:hidden">
+          {/* Date Filter & Export Bar */}
+          <section className="bg-slate-900 border border-slate-800/90 rounded-2xl p-3.5 space-y-3 shadow-md">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Filter className="w-3.5 h-3.5" /> Filter Log Range
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-slate-400 font-medium">
+                  {filteredJobs.length} {filteredJobs.length === 1 ? 'Job' : 'Jobs'}
+                </span>
+                <button
+                  onClick={handleExportCSV}
+                  className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600/20 active:bg-emerald-600/30 text-emerald-400 border border-emerald-500/40 rounded-xl text-xs font-semibold transition"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>CSV</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-5 gap-1">
+              {[
+                { id: 'today', label: 'Today' },
+                { id: 'week', label: 'Week' },
+                { id: 'month', label: 'Month' },
+                { id: 'custom', label: 'Custom' },
+                { id: 'all', label: 'All' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setDateFilter(tab.id as DateFilterType)}
+                  className={`py-2 text-xs font-semibold rounded-xl transition ${
+                    dateFilter === tab.id
+                      ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                      : 'bg-slate-950 text-slate-400 active:text-white border border-slate-800/80'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {dateFilter === 'custom' && (
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800/80 text-xs">
+                <div>
+                  <label className="block text-[10px] text-slate-400 mb-1">From Date</label>
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white text-base sm:text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-400 mb-1">To Date</label>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white text-base sm:text-xs"
+                  />
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* Filtered Period Revenue Summary */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-slate-900 border border-slate-800/80 p-3 rounded-2xl text-center">
+              <span className="text-[10px] text-slate-400 flex items-center justify-center gap-1 mb-0.5">
+                <Wrench className="w-3 h-3 text-amber-500" /> Labor Total
+              </span>
+              <div className="text-sm sm:text-lg font-bold">₱{filteredLaborRevenue.toLocaleString()}</div>
+            </div>
+            <div className="bg-slate-900 border border-slate-800/80 p-3 rounded-2xl text-center">
+              <span className="text-[10px] text-slate-400 flex items-center justify-center gap-1 mb-0.5">
+                <DollarSign className="w-3 h-3 text-blue-400" /> Parts Total
+              </span>
+              <div className="text-sm sm:text-lg font-bold">₱{filteredPartsRevenue.toLocaleString()}</div>
+            </div>
+            <div className="bg-slate-900 border border-slate-800/80 p-3 rounded-2xl text-center">
+              <span className="text-[10px] text-slate-400 flex items-center justify-center gap-1 mb-0.5">
+                <TrendingUp className="w-3 h-3 text-emerald-400" /> ROI Cut
+              </span>
+              <div className="text-sm sm:text-lg font-bold text-emerald-400">₱{filteredRecoveryTotal.toLocaleString()}</div>
+            </div>
+          </div>
+
+          {/* Log History Feed */}
+          <section className="space-y-2.5">
+            <div className="flex justify-between items-center px-1">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Log History Feed ({filteredJobs.length})
+              </h2>
+            </div>
+
+            {filteredJobs.length === 0 ? (
+              <div className="bg-slate-900 border border-dashed border-slate-800 p-8 text-center rounded-2xl text-slate-500 text-xs">
+                No entries logged for this period.
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {filteredJobs.map((job) => {
+                  const isExpanded = expandedJobId === job.id;
+                  return (
+                    <div
+                      key={job.id}
+                      className="bg-slate-900 border border-slate-800/90 rounded-2xl p-3.5 space-y-2.5 transition active:border-slate-700"
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <div
+                          onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
+                          className="cursor-pointer flex-1 select-none"
+                        >
+                          <div className="font-bold text-white text-base leading-tight flex items-center gap-1.5">
+                            {job.customer_name}
+                            <span className="text-slate-500 text-xs">
+                              {isExpanded ? <ChevronUp className="w-3.5 h-3.5 inline" /> : <ChevronDown className="w-3.5 h-3.5 inline" />}
+                            </span>
+                          </div>
+                          <div className="text-xs text-amber-400 font-medium mt-0.5">{job.service_name}</div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-1.5">
+                          <div className="text-right">
+                            <div className="text-base font-black text-white">₱{Number(job.total_sale).toLocaleString()}</div>
+                            <div className="text-[11px] text-emerald-400 font-semibold">+₱{Number(job.recovery_fee)} ROI</div>
+                          </div>
+                          <button
+                            onClick={() => setReceiptJob(job)}
+                            className="flex items-center gap-1 px-2.5 py-1 bg-amber-500/20 active:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-lg text-xs font-bold transition shadow-sm"
+                          >
+                            <Receipt className="w-3 h-3" />
+                            <span>Receipt</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div
+                        onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
+                        className="cursor-pointer space-y-1.5 select-none"
+                      >
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400 pt-2 border-t border-slate-800/60">
+                          <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-slate-500" /> {job.job_date || new Date(job.created_at).toLocaleDateString()}</span>
+                          <span className="flex items-center gap-1"><Bike className="w-3 h-3 text-slate-500" /> {job.unit || 'N/A'}</span>
+                          <span className="flex items-center gap-1"><User className="w-3 h-3 text-slate-500" /> Mech: {job.mechanic || 'N/A'}</span>
+                        </div>
+
+                        <div className="flex justify-between text-xs text-slate-400 bg-slate-950/50 px-2.5 py-1.5 rounded-xl border border-slate-800/40">
+                          <span>Labor: ₱{Number(job.customer_labor).toLocaleString()}</span>
+                          <span>Parts: ₱{Number(job.parts_sales).toLocaleString()}</span>
+                        </div>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="pt-2 border-t border-slate-800 space-y-2.5 text-xs text-slate-300">
+                          <div>
+                            <span className="font-semibold text-amber-400 block mb-1">Parts Sold:</span>
+                            {job.parts_breakdown && job.parts_breakdown.length > 0 ? (
+                              <ul className="space-y-1 pl-2 border-l-2 border-slate-800">
+                                {job.parts_breakdown.map((part, pIdx) => (
+                                  <li key={pIdx} className="flex justify-between">
+                                    <span>{part.name || 'Unnamed part'}</span>
+                                    <span className="font-medium text-slate-200">₱{Number(part.price).toLocaleString()}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <div className="text-slate-500 italic pl-2">No individual parts recorded</div>
+                            )}
+                          </div>
+
+                          {job.services_breakdown && job.services_breakdown.length > 0 && (
+                            <div>
+                              <span className="font-semibold text-amber-400 block mb-1">Services Breakdown:</span>
+                              <ul className="space-y-1 pl-2 border-l-2 border-slate-800">
+                                {job.services_breakdown.map((srv, sIdx) => (
+                                  <li key={sIdx} className="flex justify-between">
+                                    <span>{srv.name}</span>
+                                    <span className="font-medium text-slate-200">₱{Number(srv.customer_labor).toLocaleString()}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {job.notes && (
+                            <div className="bg-slate-950 p-2 rounded-xl text-slate-400 italic">
+                              Notes: {job.notes}
+                            </div>
+                          )}
+
+                          <div className="flex justify-end gap-2 pt-2 border-t border-slate-800/80">
+                            <button
+                              onClick={() => openEditModal(job)}
+                              className="flex items-center gap-1 px-3 py-2 bg-slate-800 active:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition"
+                            >
+                              <Edit className="w-3.5 h-3.5" /> Edit
+                            </button>
+                            <button
+                              onClick={(e) => handleDeleteJob(job.id, e)}
+                              className="flex items-center gap-1 px-3 py-2 bg-red-950/40 active:bg-red-900/60 text-red-400 rounded-xl text-xs font-semibold transition"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> Delete
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      {/* Floating Add Job Button */}
+      <button
+        onClick={() => {
+          resetJobForm();
+          setShowAddModal(true);
+        }}
+        className="fixed bottom-6 right-6 sm:hidden bg-amber-500 active:bg-amber-400 text-slate-950 p-4 rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-95 transition"
+      >
+        <PlusCircle className="w-7 h-7" />
+      </button>
+
       {/* LABOR PRICING MODAL */}
       {showPricingModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
           <div className="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[92vh] flex flex-col shadow-2xl">
-            {/* Header */}
             <div className="flex justify-between items-center p-4 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <Tag className="w-4 h-4 text-amber-400" />
@@ -752,9 +1101,7 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Content Body */}
             <div className="flex-1 overflow-y-auto p-4 space-y-5">
-              {/* Add / Edit Form */}
               <form onSubmit={handleSavePreset} className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
                 <span className="text-xs font-bold text-amber-400 uppercase tracking-wide block">
                   {editingPreset ? 'Edit Service Preset' : 'Add New Service Preset'}
@@ -821,7 +1168,6 @@ export default function Home() {
                 </div>
               </form>
 
-              {/* Service List */}
               <div className="space-y-2">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">
                   Active Price List ({presetServices.length})
@@ -861,284 +1207,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
-      {/* Main Content Dashboard */}
-      <div className="max-w-4xl mx-auto p-3.5 sm:p-5 space-y-4 sm:space-y-6 print:hidden">
-        {/* All-time ROI Card */}
-        <section className="bg-slate-900 border border-slate-800/90 rounded-2xl p-4 sm:p-5 shadow-lg">
-          <div className="flex justify-between items-baseline mb-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-              <TrendingUp className="w-3.5 h-3.5 text-amber-500" /> ROI Progress
-            </span>
-            <span className="text-xs font-extrabold text-amber-400">{progressPercent.toFixed(1)}%</span>
-          </div>
-
-          <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden mb-3">
-            <div
-              className="bg-amber-500 h-full rounded-full transition-all duration-500"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4 pt-2 border-t border-slate-800/80">
-            <div className="bg-slate-950/40 p-2 rounded-xl border border-slate-800/50">
-              <div className="text-[10px] text-slate-400 uppercase font-medium">Target</div>
-              <div className="text-sm sm:text-base font-bold">₱{SHOP_TARGET.toLocaleString()}</div>
-            </div>
-            <div className="bg-slate-950/40 p-2 rounded-xl border border-slate-800/50">
-              <div className="text-[10px] text-slate-400 uppercase font-medium">Recovered</div>
-              <div className="text-sm sm:text-base font-bold text-emerald-400">₱{totalRecovered.toLocaleString()}</div>
-            </div>
-            <div className="bg-slate-950/40 p-2 rounded-xl border border-slate-800/50">
-              <div className="text-[10px] text-slate-400 uppercase font-medium">Remaining</div>
-              <div className="text-sm sm:text-base font-bold text-amber-400">₱{remainingTarget.toLocaleString()}</div>
-            </div>
-            <div className="bg-slate-950/40 p-2 rounded-xl border border-slate-800/50">
-              <div className="text-[10px] text-slate-400 uppercase font-medium">Total Jobs</div>
-              <div className="text-sm sm:text-base font-bold">{jobs.length}</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-800 text-xs text-slate-300">
-            <div className="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800/60">
-              <span className="text-slate-400 block text-[10px] uppercase font-semibold">Your Share (40%)</span>
-              <span className="font-bold text-emerald-400 text-sm">₱{(totalRecovered * USER_SPLIT_PERCENT).toLocaleString()}</span>
-              <span className="text-[10px] text-slate-500 block">Cap: ₱10,000</span>
-            </div>
-            <div className="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800/60">
-              <span className="text-slate-400 block text-[10px] uppercase font-semibold">Partner Share (60%)</span>
-              <span className="font-bold text-emerald-400 text-sm">₱{(totalRecovered * PARTNER_SPLIT_PERCENT).toLocaleString()}</span>
-              <span className="text-[10px] text-slate-500 block">Cap: ₱15,000</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Date Filter Bar */}
-        <section className="bg-slate-900 border border-slate-800/90 rounded-2xl p-3.5 space-y-3 shadow-md">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Filter className="w-3.5 h-3.5" /> Date Filter
-            </span>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-400 font-medium">
-                {filteredJobs.length} {filteredJobs.length === 1 ? 'Job' : 'Jobs'}
-              </span>
-              <button
-                onClick={handleExportCSV}
-                className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600/20 active:bg-emerald-600/30 text-emerald-400 border border-emerald-500/40 rounded-xl text-xs font-semibold transition"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>CSV</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-5 gap-1">
-            {[
-              { id: 'today', label: 'Today' },
-              { id: 'week', label: 'Week' },
-              { id: 'month', label: 'Month' },
-              { id: 'custom', label: 'Custom' },
-              { id: 'all', label: 'All' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setDateFilter(tab.id as DateFilterType)}
-                className={`py-2 text-xs font-semibold rounded-xl transition ${
-                  dateFilter === tab.id
-                    ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
-                    : 'bg-slate-950 text-slate-400 active:text-white border border-slate-800/80'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {dateFilter === 'custom' && (
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800/80 text-xs">
-              <div>
-                <label className="block text-[10px] text-slate-400 mb-1">From Date</label>
-                <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white text-base sm:text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] text-slate-400 mb-1">To Date</label>
-                <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white text-base sm:text-xs"
-                />
-              </div>
-            </div>
-          )}
-        </section>
-
-        {/* Filtered Period Revenue Summary */}
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-slate-900 border border-slate-800/80 p-3 rounded-2xl text-center">
-            <span className="text-[10px] text-slate-400 flex items-center justify-center gap-1 mb-0.5">
-              <Wrench className="w-3 h-3 text-amber-500" /> Labor
-            </span>
-            <div className="text-sm sm:text-lg font-bold">₱{filteredLaborRevenue.toLocaleString()}</div>
-          </div>
-          <div className="bg-slate-900 border border-slate-800/80 p-3 rounded-2xl text-center">
-            <span className="text-[10px] text-slate-400 flex items-center justify-center gap-1 mb-0.5">
-              <DollarSign className="w-3 h-3 text-blue-400" /> Parts
-            </span>
-            <div className="text-sm sm:text-lg font-bold">₱{filteredPartsRevenue.toLocaleString()}</div>
-          </div>
-          <div className="bg-slate-900 border border-slate-800/80 p-3 rounded-2xl text-center">
-            <span className="text-[10px] text-slate-400 flex items-center justify-center gap-1 mb-0.5">
-              <TrendingUp className="w-3 h-3 text-emerald-400" /> Shop Cut
-            </span>
-            <div className="text-sm sm:text-lg font-bold text-emerald-400">₱{filteredRecoveryTotal.toLocaleString()}</div>
-          </div>
-        </div>
-
-        {/* Log History Section */}
-        <section id="log-history-section" className="space-y-2.5">
-          <div className="flex justify-between items-center px-1">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Log History ({filteredJobs.length})
-            </h2>
-          </div>
-
-          {filteredJobs.length === 0 ? (
-            <div className="bg-slate-900 border border-dashed border-slate-800 p-8 text-center rounded-2xl text-slate-500 text-xs">
-              No entries logged for this period.
-            </div>
-          ) : (
-            <div className="space-y-2.5">
-              {filteredJobs.map((job) => {
-                const isExpanded = expandedJobId === job.id;
-                return (
-                  <div
-                    key={job.id}
-                    className="bg-slate-900 border border-slate-800/90 rounded-2xl p-3.5 space-y-2.5 transition active:border-slate-700"
-                  >
-                    <div className="flex justify-between items-start gap-2">
-                      <div
-                        onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
-                        className="cursor-pointer flex-1 select-none"
-                      >
-                        <div className="font-bold text-white text-base leading-tight flex items-center gap-1.5">
-                          {job.customer_name}
-                          <span className="text-slate-500 text-xs">
-                            {isExpanded ? <ChevronUp className="w-3.5 h-3.5 inline" /> : <ChevronDown className="w-3.5 h-3.5 inline" />}
-                          </span>
-                        </div>
-                        <div className="text-xs text-amber-400 font-medium mt-0.5">{job.service_name}</div>
-                      </div>
-
-                      <div className="flex flex-col items-end gap-1.5">
-                        <div className="text-right">
-                          <div className="text-base font-black text-white">₱{Number(job.total_sale).toLocaleString()}</div>
-                          <div className="text-[11px] text-emerald-400 font-semibold">+₱{Number(job.recovery_fee)} ROI</div>
-                        </div>
-                        <button
-                          onClick={() => setReceiptJob(job)}
-                          className="flex items-center gap-1 px-2.5 py-1 bg-amber-500/20 active:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-lg text-xs font-bold transition shadow-sm"
-                        >
-                          <Receipt className="w-3 h-3" />
-                          <span>Receipt</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div
-                      onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
-                      className="cursor-pointer space-y-1.5 select-none"
-                    >
-                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-400 pt-2 border-t border-slate-800/60">
-                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-slate-500" /> {job.job_date || new Date(job.created_at).toLocaleDateString()}</span>
-                        <span className="flex items-center gap-1"><Bike className="w-3 h-3 text-slate-500" /> {job.unit || 'N/A'}</span>
-                        <span className="flex items-center gap-1"><User className="w-3 h-3 text-slate-500" /> Mech: {job.mechanic || 'N/A'}</span>
-                      </div>
-
-                      <div className="flex justify-between text-xs text-slate-400 bg-slate-950/50 px-2.5 py-1.5 rounded-xl border border-slate-800/40">
-                        <span>Labor: ₱{Number(job.customer_labor).toLocaleString()}</span>
-                        <span>Parts: ₱{Number(job.parts_sales).toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    {isExpanded && (
-                      <div className="pt-2 border-t border-slate-800 space-y-2.5 text-xs text-slate-300">
-                        <div>
-                          <span className="font-semibold text-amber-400 block mb-1">Parts Sold:</span>
-                          {job.parts_breakdown && job.parts_breakdown.length > 0 ? (
-                            <ul className="space-y-1 pl-2 border-l-2 border-slate-800">
-                              {job.parts_breakdown.map((part, pIdx) => (
-                                <li key={pIdx} className="flex justify-between">
-                                  <span>{part.name || 'Unnamed part'}</span>
-                                  <span className="font-medium text-slate-200">₱{Number(part.price).toLocaleString()}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <div className="text-slate-500 italic pl-2">No individual parts recorded</div>
-                          )}
-                        </div>
-
-                        {job.services_breakdown && job.services_breakdown.length > 0 && (
-                          <div>
-                            <span className="font-semibold text-amber-400 block mb-1">Services Breakdown:</span>
-                            <ul className="space-y-1 pl-2 border-l-2 border-slate-800">
-                              {job.services_breakdown.map((srv, sIdx) => (
-                                <li key={sIdx} className="flex justify-between">
-                                  <span>{srv.name}</span>
-                                  <span className="font-medium text-slate-200">₱{Number(srv.customer_labor).toLocaleString()}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {job.notes && (
-                          <div className="bg-slate-950 p-2 rounded-xl text-slate-400 italic">
-                            Notes: {job.notes}
-                          </div>
-                        )}
-
-                        <div className="flex justify-end gap-2 pt-2 border-t border-slate-800/80">
-                          <button
-                            onClick={() => openEditModal(job)}
-                            className="flex items-center gap-1 px-3 py-2 bg-slate-800 active:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold transition"
-                          >
-                            <Edit className="w-3.5 h-3.5" /> Edit
-                          </button>
-                          <button
-                            onClick={(e) => handleDeleteJob(job.id, e)}
-                            className="flex items-center gap-1 px-3 py-2 bg-red-950/40 active:bg-red-900/60 text-red-400 rounded-xl text-xs font-semibold transition"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" /> Delete
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      </div>
-
-      {/* Floating Add Job Button */}
-      <button
-        onClick={() => {
-          resetJobForm();
-          setShowAddModal(true);
-        }}
-        className="fixed bottom-6 right-6 sm:hidden bg-amber-500 active:bg-amber-400 text-slate-950 p-4 rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-95 transition"
-      >
-        <PlusCircle className="w-7 h-7" />
-      </button>
 
       {/* DIGITAL THERMAL RECEIPT MODAL */}
       {receiptJob && (
@@ -1328,7 +1396,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Services Section */}
               <div className="p-3 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-amber-400 uppercase tracking-wide">
@@ -1410,7 +1477,6 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Parts Section */}
               <div className="p-3 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-amber-400 uppercase tracking-wide">Parts Sold</span>
@@ -1452,7 +1518,6 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Totals Summary */}
               <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3 space-y-1 text-xs">
                 <div className="flex justify-between text-slate-300">
                   <span>Labor Total:</span>
