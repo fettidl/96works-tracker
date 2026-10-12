@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { PlusCircle, LogOut, TrendingUp, DollarSign, Wrench, Trash2, Calendar, User, Bike } from 'lucide-react';
+import Image from 'next/image';
 
 const SHOP_TARGET = 25000;
 const USER_SPLIT_PERCENT = 0.40;   // 40% (₱10,000 share)
@@ -277,10 +278,17 @@ export default function Home() {
     return (
       <main className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
         <div className="bg-slate-800 p-8 rounded-2xl shadow-xl w-full max-w-sm border border-slate-700">
-          <div className="text-center mb-6">
-            <h1 className="text-3xl font-extrabold text-white tracking-wider">96 WORKS</h1>
-            <p className="text-slate-400 text-sm mt-1">Shop Tracker & ROI System</p>
-          </div>
+          <div className="text-center mb-6 flex flex-col items-center">
+  <Image
+    src="/logo.png"
+    alt="96 Works Logo"
+    width={140}
+    height={60}
+    className="h-14 w-auto object-contain mx-auto mb-2"
+    priority
+  />
+  <p className="text-slate-400 text-xs">Shop Tracker & ROI System</p>
+</div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             {authError && (
@@ -326,10 +334,19 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 pb-24">
       <header className="bg-slate-900 border-b border-slate-800 px-4 py-3 sticky top-0 z-30 flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-black text-amber-500 tracking-wider">96 WORKS</h1>
-          <p className="text-xs text-slate-400">Shop Tracker & Log Book</p>
-        </div>
+        <div className="flex items-center gap-3">
+  <Image
+    src="/logo.png"
+    alt="96 Works Logo"
+    width={100}
+    height={40}
+    className="h-9 w-auto object-contain"
+    priority
+  />
+  <span className="text-[11px] text-slate-400 border-l border-slate-700 pl-2.5 hidden sm:inline">
+    Shop Tracker & Log Book
+  </span>
+</div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowAddModal(true)}
