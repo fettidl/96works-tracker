@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
-import { PlusCircle, LogOut, TrendingUp, DollarSign, Wrench, Trash2, Calendar, User, Bike, Edit, ChevronDown, ChevronUp, Filter, Receipt, Copy, Printer, Check, Download, X } from 'lucide-react';
+import { PlusCircle, LogOut, TrendingUp, DollarSign, Wrench, Trash2, Calendar, User, Bike, Edit, ChevronDown, ChevronUp, Filter, Receipt, Copy, Printer, Check, Download, X, Menu, Settings, Tag } from 'lucide-react';
 import Image from 'next/image';
 
 const SHOP_TARGET = 25000;
@@ -67,6 +67,16 @@ export default function Home() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
 
+  // Navigation Drawer & Modals
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [showPricingModal, setShowPricingModal] = useState(false);
+
+  // Pricing Form States
+  const [editingPreset, setEditingPreset] = useState<ServicePreset | null>(null);
+  const [presetName, setPresetName] = useState('');
+  const [presetBaseLabor, setPresetBaseLabor] = useState<number | ''>('');
+  const [presetRecoveryFee, setPresetRecoveryFee] = useState<number | ''>(50);
+
   // Receipt Modal State
   const [receiptJob, setReceiptJob] = useState<Job | null>(null);
   const [copiedReceipt, setCopiedReceipt] = useState(false);
@@ -76,10 +86,10 @@ export default function Home() {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
-  // Editing state
+  // Editing state for Job
   const [editingJob, setEditingJob] = useState<Job | null>(null);
 
-  // Form states
+  // Form states for Job
   const [jobDate, setJobDate] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [unit, setUnit] = useState('');
@@ -138,10 +148,11 @@ export default function Home() {
   };
 
   const handleLogout = async () => {
+    setMenuOpen(false);
     await supabase.auth.signOut();
   };
 
-  const resetForm = () => {
+  const resetJobForm = () => {
     setJobDate(new Date().toISOString().split('T')[0]);
     setCustomerName('');
     setUnit('');
@@ -194,6 +205,7 @@ export default function Home() {
     }
   };
 
+  // Service Row Handlers
   const handleAddServiceRow = () => {
     setSelectedServices([
       ...selectedServices,
@@ -247,6 +259,7 @@ export default function Home() {
     setSelectedServices(updated);
   };
 
+  // Parts Row Handlers
   const handleAddPartRow = () => {
     setPartsList([...partsList, { name: '', price: 0 }]);
   };
@@ -315,11 +328,63 @@ export default function Home() {
     setIsSubmitting(false);
 
     if (!responseError) {
-      resetForm();
+      resetJobForm();
       setShowAddModal(false);
       loadData();
     } else {
       alert('Error saving job: ' + responseError.message);
+    }
+  };
+
+  // Labor Pricing Handlers
+  const handleSavePreset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!presetName.trim()) {
+      alert('Service name is required');
+      return;
+    }
+
+    const base = Number(presetBaseLabor) || 0;
+    const rec = Number(presetRecoveryFee) || 0;
+    const total = base + rec;
+
+    const payload = {
+      name: presetName.trim(),
+      base_labor: base,
+      recovery_fee: rec,
+      customer_labor: total,
+    };
+
+    if (editingPreset) {
+      const { error } = await supabase.from('services').update(payload).eq('id', editingPreset.id);
+      if (error) alert('Error updating: ' + error.message);
+    } else {
+      const { error } = await supabase.from('services').insert([payload]);
+      if (error) alert('Error adding: ' + error.message);
+    }
+
+    setEditingPreset(null);
+    setPresetName('');
+    setPresetBaseLabor('');
+    setPresetRecoveryFee(50);
+    loadData();
+  };
+
+  const handleEditPresetClick = (preset: ServicePreset) => {
+    setEditingPreset(preset);
+    setPresetName(preset.name);
+    setPresetBaseLabor(preset.base_labor);
+    setPresetRecoveryFee(preset.recovery_fee);
+  };
+
+  const handleDeletePreset = async (id: string) => {
+    if (confirm('Delete this service preset?')) {
+      const { error } = await supabase.from('services').delete().eq('id', id);
+      if (!error) {
+        setPresetServices(presetServices.filter((s) => s.id !== id));
+      } else {
+        alert('Error deleting: ' + error.message);
+      }
     }
   };
 
@@ -358,6 +423,7 @@ export default function Home() {
     setTimeout(() => setCopiedReceipt(false), 2500);
   };
 
+  // Date Filtering Logic
   const filteredJobs = useMemo(() => {
     if (dateFilter === 'all') return jobs;
 
@@ -530,9 +596,18 @@ export default function Home() {
   // DASHBOARD & LOG BOOK VIEW
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 pb-28 print:bg-white print:text-black print:pb-0">
-      {/* Sticky Mobile Header */}
+      {/* Header with Hamburger Menu Button */}
       <header className="bg-slate-900/95 backdrop-blur border-b border-slate-800/80 px-4 py-3 sticky top-0 z-30 flex justify-between items-center print:hidden">
         <div className="flex items-center gap-2.5">
+          {/* Hamburger Icon */}
+          <button
+            onClick={() => setMenuOpen(true)}
+            className="p-2 text-slate-300 hover:text-white rounded-xl active:bg-slate-800 transition -ml-1.5"
+            title="Open Menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
           <Image
             src="/logo.png"
             alt="96 Works Logo"
@@ -545,10 +620,11 @@ export default function Home() {
             Shop Tracker
           </span>
         </div>
+
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
-              resetForm();
+              resetJobForm();
               setShowAddModal(true);
             }}
             className="flex items-center gap-1.5 bg-amber-500 active:bg-amber-400 text-slate-950 font-bold px-3 py-2 rounded-xl text-xs sm:text-sm shadow-md transition"
@@ -556,16 +632,237 @@ export default function Home() {
             <PlusCircle className="w-4 h-4" />
             <span>Log Job</span>
           </button>
-          <button
-            onClick={handleLogout}
-            className="p-2 text-slate-400 hover:text-white rounded-xl active:bg-slate-800 transition"
-            title="Log Out"
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
         </div>
       </header>
 
+      {/* SLIDE-OUT MOBILE / DESKTOP NAVIGATION DRAWER */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 flex">
+          <div
+            className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity"
+            onClick={() => setMenuOpen(false)}
+          />
+
+          <div className="relative w-72 max-w-[85vw] bg-slate-900 border-r border-slate-800 h-full p-5 flex flex-col justify-between shadow-2xl z-10">
+            <div className="space-y-6">
+              <div className="flex justify-between items-center pb-3 border-b border-slate-800">
+                <Image
+                  src="/logo.png"
+                  alt="96 Works Logo"
+                  width={110}
+                  height={45}
+                  className="h-9 w-auto object-contain"
+                  priority
+                />
+                <button
+                  onClick={() => setMenuOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Navigation Links */}
+              <nav className="space-y-1 text-sm font-semibold">
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition text-left"
+                >
+                  <TrendingUp className="w-4 h-4 text-amber-500" />
+                  <span>Dashboard & ROI</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    resetJobForm();
+                    setMenuOpen(false);
+                    setShowAddModal(true);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition text-left"
+                >
+                  <PlusCircle className="w-4 h-4 text-amber-500" />
+                  <span>Add New Log</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    const historyElement = document.getElementById('log-history-section');
+                    if (historyElement) {
+                      historyElement.scrollIntoView({ behavior: 'smooth' });
+                    }
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition text-left"
+                >
+                  <Calendar className="w-4 h-4 text-amber-500" />
+                  <span>View History Logs</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setShowPricingModal(true);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition text-left"
+                >
+                  <Tag className="w-4 h-4 text-amber-400" />
+                  <span>Labor Pricing & Presets</span>
+                </button>
+              </nav>
+            </div>
+
+            {/* Logout Footer */}
+            <div className="pt-4 border-t border-slate-800">
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-red-400 hover:bg-red-950/30 rounded-xl transition text-left"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Sign Out ({session.user?.email})</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LABOR PRICING MODAL */}
+      {showPricingModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+          <div className="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[92vh] flex flex-col shadow-2xl">
+            {/* Header */}
+            <div className="flex justify-between items-center p-4 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Tag className="w-4 h-4 text-amber-400" />
+                <h3 className="text-base font-bold text-white">Labor Pricing & Services</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowPricingModal(false);
+                  setEditingPreset(null);
+                  setPresetName('');
+                  setPresetBaseLabor('');
+                  setPresetRecoveryFee(50);
+                }}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content Body */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-5">
+              {/* Add / Edit Form */}
+              <form onSubmit={handleSavePreset} className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
+                <span className="text-xs font-bold text-amber-400 uppercase tracking-wide block">
+                  {editingPreset ? 'Edit Service Preset' : 'Add New Service Preset'}
+                </span>
+
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Service Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. CVT Cleaning & Tuning"
+                    value={presetName}
+                    onChange={(e) => setPresetName(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-base sm:text-xs"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">Base Labor (₱)</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 300"
+                      value={presetBaseLabor}
+                      onChange={(e) => setPresetBaseLabor(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-base sm:text-xs"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">Recovery Cut (₱)</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 50"
+                      value={presetRecoveryFee}
+                      onChange={(e) => setPresetRecoveryFee(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-base sm:text-xs"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-1 flex gap-2">
+                  {editingPreset && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingPreset(null);
+                        setPresetName('');
+                        setPresetBaseLabor('');
+                        setPresetRecoveryFee(50);
+                      }}
+                      className="w-1/3 py-2 bg-slate-800 text-slate-300 font-semibold rounded-xl text-xs"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    className="flex-1 py-2.5 bg-amber-500 active:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs shadow-md transition"
+                  >
+                    {editingPreset ? 'Update Price' : '+ Add Service Preset'}
+                  </button>
+                </div>
+              </form>
+
+              {/* Service List */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">
+                  Active Price List ({presetServices.length})
+                </span>
+
+                {presetServices.map((preset) => (
+                  <div
+                    key={preset.id}
+                    className="p-3 bg-slate-950/60 border border-slate-800 rounded-xl flex justify-between items-center"
+                  >
+                    <div>
+                      <div className="font-bold text-white text-sm">{preset.name}</div>
+                      <div className="text-xs text-slate-400">
+                        Base: ₱{preset.base_labor} | Rec: ₱{preset.recovery_fee} | Total: <span className="text-amber-400 font-semibold">₱{preset.customer_labor}</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => handleEditPresetClick(preset)}
+                        className="p-2 text-slate-400 hover:text-amber-400 rounded-lg hover:bg-slate-800 transition"
+                        title="Edit Price"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeletePreset(preset.id)}
+                        className="p-2 text-slate-400 hover:text-red-400 rounded-lg hover:bg-slate-800 transition"
+                        title="Delete Preset"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Dashboard */}
       <div className="max-w-4xl mx-auto p-3.5 sm:p-5 space-y-4 sm:space-y-6 print:hidden">
         {/* All-time ROI Card */}
         <section className="bg-slate-900 border border-slate-800/90 rounded-2xl p-4 sm:p-5 shadow-lg">
@@ -636,7 +933,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Quick Buttons */}
           <div className="grid grid-cols-5 gap-1">
             {[
               { id: 'today', label: 'Today' },
@@ -705,8 +1001,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Log History */}
-        <section className="space-y-2.5">
+        {/* Log History Section */}
+        <section id="log-history-section" className="space-y-2.5">
           <div className="flex justify-between items-center px-1">
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
               Log History ({filteredJobs.length})
@@ -833,10 +1129,10 @@ export default function Home() {
         </section>
       </div>
 
-      {/* Floating Add Job Button (Fixed on Mobile) */}
+      {/* Floating Add Job Button */}
       <button
         onClick={() => {
-          resetForm();
+          resetJobForm();
           setShowAddModal(true);
         }}
         className="fixed bottom-6 right-6 sm:hidden bg-amber-500 active:bg-amber-400 text-slate-950 p-4 rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-95 transition"
@@ -965,18 +1261,17 @@ export default function Home() {
         </div>
       )}
 
-      {/* CREATE / EDIT JOB DRAWER (Mobile Bottom Sheet / Desktop Modal) */}
+      {/* CREATE / EDIT JOB DRAWER */}
       {(showAddModal || editingJob) && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
           <div className="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[92vh] flex flex-col shadow-2xl">
-            {/* Modal Header */}
             <div className="flex justify-between items-center p-4 border-b border-slate-800/80">
               <h3 className="text-base font-bold text-white">
                 {editingJob ? 'Edit Log Entry' : 'Log New Job'}
               </h3>
               <button
                 onClick={() => {
-                  resetForm();
+                  resetJobForm();
                   setShowAddModal(false);
                 }}
                 className="p-1.5 text-slate-400 hover:text-white rounded-lg"
@@ -985,7 +1280,6 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Modal Body */}
             <form onSubmit={handleSaveJob} className="flex-1 overflow-y-auto p-4 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
@@ -1158,7 +1452,7 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Calculator Summary */}
+              {/* Totals Summary */}
               <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3 space-y-1 text-xs">
                 <div className="flex justify-between text-slate-300">
                   <span>Labor Total:</span>
@@ -1188,12 +1482,11 @@ export default function Home() {
                 />
               </div>
 
-              {/* Actions Footer */}
               <div className="flex gap-2 pt-1 pb-2">
                 <button
                   type="button"
                   onClick={() => {
-                    resetForm();
+                    resetJobForm();
                     setShowAddModal(false);
                   }}
                   className="w-1/2 py-3 bg-slate-800 active:bg-slate-700 text-slate-300 rounded-xl font-semibold text-xs transition"
