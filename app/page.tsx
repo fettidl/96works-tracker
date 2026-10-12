@@ -787,11 +787,19 @@ export default function Home() {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 z-50 overflow-y-auto">
           <div className="bg-white text-slate-950 rounded-2xl w-full max-w-sm p-6 shadow-2xl space-y-4 print:p-0 print:shadow-none print:w-full">
             <div id="thermal-receipt" className="font-mono text-xs space-y-3">
-              <div className="text-center pb-3 border-b-2 border-dashed border-slate-300">
-                <div className="font-black text-xl tracking-wider text-black">96 WORKS</div>
-                <div className="text-[10px] uppercase text-slate-600">Motorcycle Service & Parts</div>
-                <div className="text-[10px] text-slate-500 mt-1">Official Shop Receipt</div>
-              </div>
+              {/* Header with Logo */}
+<div className="text-center pb-3 border-b-2 border-dashed border-slate-300 flex flex-col items-center">
+  <Image
+    src="/logo.png"
+    alt="96 Works Logo"
+    width={120}
+    height={48}
+    className="h-10 w-auto object-contain mx-auto mb-1"
+    priority
+  />
+  <div className="text-[10px] uppercase tracking-wide text-slate-600 font-semibold">Motorcycle Service & Parts</div>
+  <div className="text-[10px] text-slate-500 mt-0.5">Official Shop Receipt</div>
+</div>
 
               <div className="space-y-1 text-[11px] pb-3 border-b border-dashed border-slate-300">
                 <div className="flex justify-between">
