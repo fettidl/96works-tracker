@@ -323,7 +323,6 @@ export default function Home() {
     }
   };
 
-  // Build plain-text format for Messenger / SMS
   const copyReceiptToClipboard = (job: Job) => {
     let text = `==============================\n       🏍️ 96 WORKS 🏍️\n   Motorcycle Service & Parts\n==============================\n`;
     text += `Date: ${job.job_date || new Date(job.created_at).toLocaleDateString()}\n`;
@@ -359,7 +358,6 @@ export default function Home() {
     setTimeout(() => setCopiedReceipt(false), 2500);
   };
 
-  // Date Filtering Logic
   const filteredJobs = useMemo(() => {
     if (dateFilter === 'all') return jobs;
 
@@ -475,7 +473,7 @@ export default function Home() {
   // DASHBOARD & LOG BOOK VIEW
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 pb-24 print:bg-white print:text-black print:pb-0">
-      {/* Header - Hidden when printing */}
+      {/* Header */}
       <header className="bg-slate-900 border-b border-slate-800 px-4 py-3 sticky top-0 z-30 flex justify-between items-center print:hidden">
         <div className="flex items-center gap-3">
           <Image
@@ -511,7 +509,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Dashboard Screen - Hidden when printing */}
       <div className="max-w-4xl mx-auto p-4 space-y-6 print:hidden">
         {/* Target Progress Card */}
         <section className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
@@ -645,7 +642,7 @@ export default function Home() {
         <section className="space-y-3">
           <div className="flex justify-between items-center">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
-              Log History ({filteredJobs.length}) <span className="text-xs font-normal lowercase text-slate-500">(tap log to view items)</span>
+              Log History ({filteredJobs.length})
             </h2>
           </div>
 
@@ -660,36 +657,58 @@ export default function Home() {
                 return (
                   <div
                     key={job.id}
-                    onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
-                    className="bg-slate-900 border border-slate-800 hover:border-slate-700 p-4 rounded-xl space-y-2 cursor-pointer transition"
+                    className="bg-slate-900 border border-slate-800 hover:border-slate-700 p-4 rounded-xl space-y-2 transition"
                   >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-bold text-white text-base">{job.customer_name}</div>
+                    {/* Top Row: Details & Quick Buttons */}
+                    <div className="flex justify-between items-start gap-2">
+                      <div
+                        onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
+                        className="cursor-pointer flex-1"
+                      >
+                        <div className="font-bold text-white text-base flex items-center gap-2">
+                          {job.customer_name}
+                          <span className="text-slate-500 text-xs">
+                            {isExpanded ? <ChevronUp className="w-3.5 h-3.5 inline" /> : <ChevronDown className="w-3.5 h-3.5 inline" />}
+                          </span>
+                        </div>
                         <div className="text-xs text-amber-400 font-semibold">{job.service_name}</div>
                       </div>
-                      <div className="flex items-start gap-2">
-                        <div className="text-right">
+
+                      <div className="flex items-center gap-2">
+                        {/* Instant Receipt Button */}
+                        <button
+                          onClick={() => setReceiptJob(job)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-lg text-xs font-bold transition shadow-sm"
+                          title="Generate Receipt"
+                        >
+                          <Receipt className="w-3.5 h-3.5" />
+                          <span>Receipt</span>
+                        </button>
+
+                        <div className="text-right pl-1">
                           <div className="text-base font-extrabold text-white">₱{Number(job.total_sale).toLocaleString()}</div>
                           <div className="text-xs text-emerald-400 font-medium">+₱{Number(job.recovery_fee)} ROI</div>
                         </div>
-                        <div className="text-slate-500 pt-1">
-                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        </div>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400 pt-1 border-t border-slate-800/60">
-                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-slate-500" /> {job.job_date || new Date(job.created_at).toLocaleDateString()}</span>
-                      <span className="flex items-center gap-1"><Bike className="w-3 h-3 text-slate-500" /> {job.unit || 'N/A'}</span>
-                      <span className="flex items-center gap-1"><User className="w-3 h-3 text-slate-500" /> Mech: {job.mechanic || 'N/A'}</span>
+                    <div
+                      onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
+                      className="cursor-pointer"
+                    >
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400 pt-1 border-t border-slate-800/60">
+                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-slate-500" /> {job.job_date || new Date(job.created_at).toLocaleDateString()}</span>
+                        <span className="flex items-center gap-1"><Bike className="w-3 h-3 text-slate-500" /> {job.unit || 'N/A'}</span>
+                        <span className="flex items-center gap-1"><User className="w-3 h-3 text-slate-500" /> Mech: {job.mechanic || 'N/A'}</span>
+                      </div>
+
+                      <div className="flex justify-between text-xs text-slate-400 pt-1 bg-slate-950/40 px-2 py-1 rounded mt-1">
+                        <span>Labor: ₱{Number(job.customer_labor).toLocaleString()}</span>
+                        <span>Parts: ₱{Number(job.parts_sales).toLocaleString()}</span>
+                      </div>
                     </div>
 
-                    <div className="flex justify-between text-xs text-slate-400 pt-1 bg-slate-950/40 px-2 py-1 rounded">
-                      <span>Labor: ₱{Number(job.customer_labor).toLocaleString()}</span>
-                      <span>Parts: ₱{Number(job.parts_sales).toLocaleString()}</span>
-                    </div>
-
+                    {/* Expanded view for parts and service breakdown */}
                     {isExpanded && (
                       <div className="mt-3 pt-3 border-t border-slate-800 space-y-2.5 text-xs text-slate-300">
                         <div>
@@ -728,22 +747,9 @@ export default function Home() {
                           </div>
                         )}
 
-                        {/* Action Buttons: Receipt, Edit, Delete */}
-                        <div className="flex justify-end gap-2 pt-2 border-t border-slate-800/80 flex-wrap">
+                        <div className="flex justify-end gap-2 pt-2 border-t border-slate-800/80">
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setReceiptJob(job);
-                            }}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-semibold transition"
-                          >
-                            <Receipt className="w-3.5 h-3.5" /> View Receipt
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEditModal(job);
-                            }}
+                            onClick={() => openEditModal(job)}
                             className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition"
                           >
                             <Edit className="w-3.5 h-3.5" /> Edit
@@ -780,17 +786,13 @@ export default function Home() {
       {receiptJob && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 z-50 overflow-y-auto">
           <div className="bg-white text-slate-950 rounded-2xl w-full max-w-sm p-6 shadow-2xl space-y-4 print:p-0 print:shadow-none print:w-full">
-            
-            {/* Receipt Content Area */}
             <div id="thermal-receipt" className="font-mono text-xs space-y-3">
-              {/* Header */}
               <div className="text-center pb-3 border-b-2 border-dashed border-slate-300">
                 <div className="font-black text-xl tracking-wider text-black">96 WORKS</div>
                 <div className="text-[10px] uppercase text-slate-600">Motorcycle Service & Parts</div>
                 <div className="text-[10px] text-slate-500 mt-1">Official Shop Receipt</div>
               </div>
 
-              {/* Meta details */}
               <div className="space-y-1 text-[11px] pb-3 border-b border-dashed border-slate-300">
                 <div className="flex justify-between">
                   <span className="text-slate-500">Date:</span>
@@ -810,7 +812,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Services Breakdown */}
               <div className="space-y-1">
                 <span className="font-bold text-[10px] tracking-wider uppercase text-slate-600 block">Labor & Services</span>
                 {receiptJob.services_breakdown && receiptJob.services_breakdown.length > 0 ? (
@@ -828,7 +829,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Parts Breakdown */}
               {receiptJob.parts_breakdown && receiptJob.parts_breakdown.length > 0 && (
                 <div className="space-y-1 pt-2 border-t border-dashed border-slate-200">
                   <span className="font-bold text-[10px] tracking-wider uppercase text-slate-600 block">Parts & Consumables</span>
@@ -841,7 +841,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Totals */}
               <div className="pt-3 border-t-2 border-dashed border-slate-300 space-y-1">
                 <div className="flex justify-between text-slate-600 text-[11px]">
                   <span>Subtotal Labor:</span>
@@ -857,21 +856,18 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Notes */}
               {receiptJob.notes && (
                 <div className="text-[10px] text-slate-500 italic pt-1 border-t border-dashed border-slate-200">
                   Remarks: {receiptJob.notes}
                 </div>
               )}
 
-              {/* Footer */}
               <div className="text-center pt-3 border-t-2 border-dashed border-slate-300 text-[10px] text-slate-500">
                 <div>Ride safe and thank you!</div>
                 <div>Keep receipt for service warranty.</div>
               </div>
             </div>
 
-            {/* Modal Actions - Hidden when printing */}
             <div className="space-y-2 pt-2 border-t border-slate-200 print:hidden font-sans">
               <button
                 onClick={() => copyReceiptToClipboard(receiptJob)}
