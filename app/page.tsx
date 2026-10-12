@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
-import { PlusCircle, LogOut, TrendingUp, DollarSign, Wrench, Trash2, Calendar, User, Bike, Edit, ChevronDown, ChevronUp } from 'lucide-react';
+import { PlusCircle, LogOut, TrendingUp, DollarSign, Wrench, Trash2, Calendar, User, Bike, Edit, ChevronDown, ChevronUp, Filter } from 'lucide-react';
 import Image from 'next/image';
 
 const SHOP_TARGET = 25000;
@@ -50,6 +50,8 @@ interface Job {
   services_breakdown?: ServiceItem[];
 }
 
+type DateFilterType = 'today' | 'week' | 'month' | 'custom' | 'all';
+
 export default function Home() {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -64,6 +66,11 @@ export default function Home() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+
+  // Date Filtering State
+  const [dateFilter, setDateFilter] = useState<DateFilterType>('all');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
 
   // Editing state
   const [editingJob, setEditingJob] = useState<Job | null>(null);
@@ -81,7 +88,10 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    setJobDate(new Date().toISOString().split('T')[0]);
+    const today = new Date().toISOString().split('T')[0];
+    setJobDate(today);
+    setCustomStartDate(today);
+    setCustomEndDate(today);
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -180,6 +190,7 @@ export default function Home() {
     }
   };
 
+  // Service Row Handlers
   const handleAddServiceRow = () => {
     setSelectedServices([
       ...selectedServices,
@@ -233,6 +244,7 @@ export default function Home() {
     setSelectedServices(updated);
   };
 
+  // Parts Row Handlers
   const handleAddPartRow = () => {
     setPartsList([...partsList, { name: '', price: 0 }]);
   };
@@ -309,11 +321,55 @@ export default function Home() {
     }
   };
 
+  // Date Filtering Logic
+  const filteredJobs = useMemo(() => {
+    if (dateFilter === 'all') return jobs;
+
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+
+    return jobs.filter((job) => {
+      const jDate = job.job_date || new Date(job.created_at).toISOString().split('T')[0];
+
+      if (dateFilter === 'today') {
+        return jDate === todayStr;
+      }
+
+      if (dateFilter === 'week') {
+        const d = new Date(jDate);
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Start on Monday
+        const monday = new Date(now.setDate(diff));
+        monday.setHours(0, 0, 0, 0);
+        return d >= monday;
+      }
+
+      if (dateFilter === 'month') {
+        const currentMonth = todayStr.substring(0, 7); // YYYY-MM
+        return jDate.startsWith(currentMonth);
+      }
+
+      if (dateFilter === 'custom') {
+        if (customStartDate && customEndDate) {
+          return jDate >= customStartDate && jDate <= customEndDate;
+        }
+        if (customStartDate) return jDate >= customStartDate;
+        if (customEndDate) return jDate <= customEndDate;
+      }
+
+      return true;
+    });
+  }, [jobs, dateFilter, customStartDate, customEndDate]);
+
+  // All-time aggregates (For Target & Splits)
   const totalRecovered = jobs.reduce((sum, j) => sum + Number(j.recovery_fee || 0), 0);
-  const totalLaborRevenue = jobs.reduce((sum, j) => sum + Number(j.customer_labor || 0), 0);
-  const totalPartsRevenue = jobs.reduce((sum, j) => sum + Number(j.parts_sales || 0), 0);
   const remainingTarget = Math.max(0, SHOP_TARGET - totalRecovered);
   const progressPercent = Math.min(100, (totalRecovered / SHOP_TARGET) * 100);
+
+  // Filtered period aggregates
+  const filteredLaborRevenue = filteredJobs.reduce((sum, j) => sum + Number(j.customer_labor || 0), 0);
+  const filteredPartsRevenue = filteredJobs.reduce((sum, j) => sum + Number(j.parts_sales || 0), 0);
+  const filteredRecoveryTotal = filteredJobs.reduce((sum, j) => sum + Number(j.recovery_fee || 0), 0);
 
   if (loading) {
     return (
@@ -419,11 +475,11 @@ export default function Home() {
       </header>
 
       <div className="max-w-4xl mx-auto p-4 space-y-6">
-        {/* Target Progress Card */}
+        {/* Target Progress Card (All-time Target) */}
         <section className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
           <div className="flex justify-between items-baseline mb-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-              <TrendingUp className="w-4 h-4 text-amber-500" /> ROI Recovery Progress
+              <TrendingUp className="w-4 h-4 text-amber-500" /> ROI Recovery Progress (All-Time)
             </span>
             <span className="text-xs font-bold text-amber-400">{progressPercent.toFixed(1)}%</span>
           </div>
@@ -468,19 +524,84 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Revenue Counters */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-            <span className="text-xs text-slate-400 flex items-center gap-1 mb-1">
-              <Wrench className="w-3.5 h-3.5 text-amber-500" /> Labor Total
+        {/* DATE RANGE FILTER BAR */}
+        <section className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-3 shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Filter className="w-3.5 h-3.5" /> Filter by Period
             </span>
-            <div className="text-xl font-bold">₱{totalLaborRevenue.toLocaleString()}</div>
+            <span className="text-xs text-slate-400">
+              Showing: <span className="text-white font-medium">{filteredJobs.length} {filteredJobs.length === 1 ? 'Job' : 'Jobs'}</span>
+            </span>
           </div>
-          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-            <span className="text-xs text-slate-400 flex items-center gap-1 mb-1">
-              <DollarSign className="w-3.5 h-3.5 text-blue-400" /> Parts Total
+
+          {/* Quick Buttons */}
+          <div className="grid grid-cols-5 gap-1.5">
+            {[
+              { id: 'today', label: 'Today' },
+              { id: 'week', label: 'Week' },
+              { id: 'month', label: 'Month' },
+              { id: 'custom', label: 'Custom' },
+              { id: 'all', label: 'All' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setDateFilter(tab.id as DateFilterType)}
+                className={`py-1.5 text-xs font-semibold rounded-lg transition ${
+                  dateFilter === tab.id
+                    ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
+                    : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Custom Date Pickers */}
+          {dateFilter === 'custom' && (
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-xs">
+              <div>
+                <label className="block text-[10px] text-slate-400 mb-1">From Date</label>
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] text-slate-400 mb-1">To Date</label>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white text-xs"
+                />
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Filtered Period Revenue Summary */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="bg-slate-900 border border-slate-800 p-3 rounded-xl text-center sm:text-left">
+            <span className="text-[10px] sm:text-xs text-slate-400 flex items-center justify-center sm:justify-start gap-1 mb-0.5">
+              <Wrench className="w-3 h-3 text-amber-500" /> Labor Total
             </span>
-            <div className="text-xl font-bold">₱{totalPartsRevenue.toLocaleString()}</div>
+            <div className="text-base sm:text-lg font-bold">₱{filteredLaborRevenue.toLocaleString()}</div>
+          </div>
+          <div className="bg-slate-900 border border-slate-800 p-3 rounded-xl text-center sm:text-left">
+            <span className="text-[10px] sm:text-xs text-slate-400 flex items-center justify-center sm:justify-start gap-1 mb-0.5">
+              <DollarSign className="w-3 h-3 text-blue-400" /> Parts Total
+            </span>
+            <div className="text-base sm:text-lg font-bold">₱{filteredPartsRevenue.toLocaleString()}</div>
+          </div>
+          <div className="bg-slate-900 border border-slate-800 p-3 rounded-xl text-center sm:text-left">
+            <span className="text-[10px] sm:text-xs text-slate-400 flex items-center justify-center sm:justify-start gap-1 mb-0.5">
+              <TrendingUp className="w-3 h-3 text-emerald-400" /> ROI Cut
+            </span>
+            <div className="text-base sm:text-lg font-bold text-emerald-400">₱{filteredRecoveryTotal.toLocaleString()}</div>
           </div>
         </div>
 
@@ -488,17 +609,17 @@ export default function Home() {
         <section className="space-y-3">
           <div className="flex justify-between items-center">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
-              Log History ({jobs.length}) <span className="text-xs font-normal lowercase text-slate-500">(tap log to view items)</span>
+              Log History ({filteredJobs.length}) <span className="text-xs font-normal lowercase text-slate-500">(tap log to view items)</span>
             </h2>
           </div>
 
-          {jobs.length === 0 ? (
+          {filteredJobs.length === 0 ? (
             <div className="bg-slate-900 border border-dashed border-slate-800 p-8 text-center rounded-xl text-slate-500 text-sm">
-              No entries logged yet. Tap "Log New Job" above.
+              No entries found for the selected period.
             </div>
           ) : (
             <div className="space-y-3">
-              {jobs.map((job) => {
+              {filteredJobs.map((job) => {
                 const isExpanded = expandedJobId === job.id;
                 return (
                   <div
