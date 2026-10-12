@@ -68,7 +68,7 @@ export default function Home() {
   // Editing state
   const [editingJob, setEditingJob] = useState<Job | null>(null);
 
-  // Form states (Used for both Create and Edit)
+  // Form states
   const [jobDate, setJobDate] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [unit, setUnit] = useState('');
@@ -145,7 +145,6 @@ export default function Home() {
     setUnit(job.unit || '');
     setMechanic(job.mechanic || '');
     
-    // Fallback if services_breakdown was empty in older rows
     if (job.services_breakdown && job.services_breakdown.length > 0) {
       setSelectedServices(job.services_breakdown);
     } else {
@@ -181,7 +180,6 @@ export default function Home() {
     }
   };
 
-  // Service Row Handlers
   const handleAddServiceRow = () => {
     setSelectedServices([
       ...selectedServices,
@@ -235,7 +233,6 @@ export default function Home() {
     setSelectedServices(updated);
   };
 
-  // Parts Row Handlers
   const handleAddPartRow = () => {
     setPartsList([...partsList, { name: '', price: 0 }]);
   };
@@ -251,7 +248,6 @@ export default function Home() {
     setPartsList(updated);
   };
 
-  // Form totals
   const validServices = selectedServices.filter((s) => s.name.trim() !== '');
   const currentBaseLabor = validServices.reduce((sum, s) => sum + s.base_labor, 0);
   const currentRecoveryFee = validServices.reduce((sum, s) => sum + s.recovery_fee, 0);
@@ -313,7 +309,6 @@ export default function Home() {
     }
   };
 
-  // Dashboard Aggregates
   const totalRecovered = jobs.reduce((sum, j) => sum + Number(j.recovery_fee || 0), 0);
   const totalLaborRevenue = jobs.reduce((sum, j) => sum + Number(j.customer_labor || 0), 0);
   const totalPartsRevenue = jobs.reduce((sum, j) => sum + Number(j.parts_sales || 0), 0);
@@ -357,7 +352,7 @@ export default function Home() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 text-base sm:text-sm"
                 placeholder="you@example.com"
                 required
               />
@@ -368,14 +363,14 @@ export default function Home() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 text-base sm:text-sm"
                 placeholder="••••••••"
                 required
               />
             </div>
             <button
               type="submit"
-              className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg transition-colors shadow-lg shadow-amber-500/20"
+              className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg transition-colors shadow-lg shadow-amber-500/20 text-sm"
             >
               Sign In
             </button>
@@ -538,10 +533,8 @@ export default function Home() {
                       <span>Parts: ₱{Number(job.parts_sales).toLocaleString()}</span>
                     </div>
 
-                    {/* Expanded Details Section */}
                     {isExpanded && (
                       <div className="mt-3 pt-3 border-t border-slate-800 space-y-2.5 text-xs text-slate-300">
-                        {/* Parts Sold Breakdown */}
                         <div>
                           <span className="font-semibold text-amber-400 block mb-1">Parts Sold Breakdown:</span>
                           {job.parts_breakdown && job.parts_breakdown.length > 0 ? (
@@ -558,7 +551,6 @@ export default function Home() {
                           )}
                         </div>
 
-                        {/* Services Breakdown */}
                         {job.services_breakdown && job.services_breakdown.length > 0 && (
                           <div>
                             <span className="font-semibold text-amber-400 block mb-1">Services Breakdown:</span>
@@ -579,20 +571,19 @@ export default function Home() {
                           </div>
                         )}
 
-                        {/* Action Buttons: Edit and Delete */}
                         <div className="flex justify-end gap-2 pt-2 border-t border-slate-800/80">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               openEditModal(job);
                             }}
-                            className="flex items-center gap-1 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-lg text-xs font-semibold transition"
+                            className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-lg text-xs font-semibold transition"
                           >
                             <Edit className="w-3.5 h-3.5" /> Edit Log
                           </button>
                           <button
                             onClick={(e) => handleDeleteJob(job.id, e)}
-                            className="flex items-center gap-1 px-3 py-1 bg-red-950/40 hover:bg-red-900/60 text-red-400 rounded-lg text-xs font-semibold transition"
+                            className="flex items-center gap-1 px-3 py-1.5 bg-red-950/40 hover:bg-red-900/60 text-red-400 rounded-lg text-xs font-semibold transition"
                           >
                             <Trash2 className="w-3.5 h-3.5" /> Delete Log
                           </button>
@@ -607,7 +598,7 @@ export default function Home() {
         </section>
       </div>
 
-      {/* Floating Add Job Button for Mobile */}
+      {/* Floating Add Job Button */}
       <button
         onClick={() => {
           resetForm();
@@ -620,22 +611,22 @@ export default function Home() {
 
       {/* Create / Edit Job Modal */}
       {(showAddModal || editingJob) && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-5 my-6 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 z-50 overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-5 my-auto max-h-[92vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-white mb-3">
               {editingJob ? 'Edit Log Entry' : 'Log New Job & Calculate'}
             </h3>
 
             <form onSubmit={handleSaveJob} className="space-y-4">
               {/* Date & Mechanic */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">Date</label>
                   <input
                     type="date"
                     value={jobDate}
                     onChange={(e) => setJobDate(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white text-xs focus:ring-2 focus:ring-amber-500"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-base sm:text-xs focus:ring-2 focus:ring-amber-500"
                     required
                   />
                 </div>
@@ -646,13 +637,13 @@ export default function Home() {
                     placeholder="e.g. Kuya Dan / Weweng"
                     value={mechanic}
                     onChange={(e) => setMechanic(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white text-xs focus:ring-2 focus:ring-amber-500"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-base sm:text-xs focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
               </div>
 
               {/* Customer Name & Unit */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">Customer Name</label>
                   <input
@@ -660,7 +651,7 @@ export default function Home() {
                     placeholder="e.g. John Santos"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white text-xs focus:ring-2 focus:ring-amber-500"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-base sm:text-xs focus:ring-2 focus:ring-amber-500"
                     required
                   />
                 </div>
@@ -671,7 +662,7 @@ export default function Home() {
                     placeholder="e.g. Aerox 155 / Click 125"
                     value={unit}
                     onChange={(e) => setUnit(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white text-xs focus:ring-2 focus:ring-amber-500"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-base sm:text-xs focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
               </div>
@@ -697,7 +688,7 @@ export default function Home() {
                       <select
                         value={srv.is_custom ? '__custom__' : srv.id || ''}
                         onChange={(e) => handlePresetSelect(index, e.target.value)}
-                        className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white text-xs focus:ring-2 focus:ring-amber-500"
+                        className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-base sm:text-xs focus:ring-2 focus:ring-amber-500"
                       >
                         <option value="">-- Select Preset Service --</option>
                         {presetServices.map((p) => (
@@ -712,10 +703,10 @@ export default function Home() {
                         <button
                           type="button"
                           onClick={() => handleRemoveServiceRow(index)}
-                          className="text-slate-500 hover:text-red-400 p-1"
+                          className="text-slate-500 hover:text-red-400 p-2"
                           title="Remove service"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       )}
                     </div>
@@ -727,7 +718,7 @@ export default function Home() {
                           placeholder="Custom service name (e.g. Engine Repaint / FI Cleaning)"
                           value={srv.name}
                           onChange={(e) => handleCustomServiceChange(index, 'name', e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-white text-xs"
+                          className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-base sm:text-xs"
                           required
                         />
                         <div className="grid grid-cols-2 gap-2">
@@ -738,7 +729,7 @@ export default function Home() {
                               value={srv.base_labor || ''}
                               placeholder="0"
                               onChange={(e) => handleCustomServiceChange(index, 'base_labor', e.target.value)}
-                              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-white text-xs"
+                              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-base sm:text-xs"
                             />
                           </div>
                           <div>
@@ -748,7 +739,7 @@ export default function Home() {
                               value={srv.recovery_fee || ''}
                               placeholder="50"
                               onChange={(e) => handleCustomServiceChange(index, 'recovery_fee', e.target.value)}
-                              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-white text-xs"
+                              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-base sm:text-xs"
                             />
                           </div>
                         </div>
@@ -775,32 +766,32 @@ export default function Home() {
                   <div key={index} className="flex gap-2 items-center">
                     <input
                       type="text"
-                      placeholder="Part item (e.g. Yamalube Oil, Belt, Slider)"
+                      placeholder="Part item (e.g. Yamalube Oil, Belt)"
                       value={part.name}
                       onChange={(e) => handlePartChange(index, 'name', e.target.value)}
-                      className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-white text-xs"
+                      className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-base sm:text-xs"
                     />
                     <input
                       type="number"
                       placeholder="₱ Price"
                       value={part.price || ''}
                       onChange={(e) => handlePartChange(index, 'price', e.target.value)}
-                      className="w-24 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-white text-xs text-right"
+                      className="w-24 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-base sm:text-xs text-right"
                     />
                     {partsList.length > 1 && (
                       <button
                         type="button"
                         onClick={() => handleRemovePartRow(index)}
-                        className="text-slate-500 hover:text-red-400 p-1"
+                        className="text-slate-500 hover:text-red-400 p-2"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     )}
                   </div>
                 ))}
               </div>
 
-              {/* Live Calculator Summary Box */}
+              {/* Calculator Summary */}
               <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 space-y-1.5 text-xs">
                 <div className="flex justify-between text-slate-300">
                   <span>Labor Total:</span>
@@ -824,10 +815,10 @@ export default function Home() {
               <div>
                 <input
                   type="text"
-                  placeholder="Notes (e.g. Paid via GCash / Cash, Warranty remarks)"
+                  placeholder="Notes (e.g. Paid via GCash / Cash)"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white text-xs"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-base sm:text-xs"
                 />
               </div>
 
@@ -839,14 +830,14 @@ export default function Home() {
                     resetForm();
                     setShowAddModal(false);
                   }}
-                  className="w-1/2 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs"
+                  className="w-1/2 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-1/2 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs shadow-md shadow-amber-500/20"
+                  className="w-1/2 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs shadow-md shadow-amber-500/20"
                 >
                   {isSubmitting ? 'Saving...' : editingJob ? 'Update Log' : 'Save & Record Job'}
                 </button>
