@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
-import { PlusCircle, LogOut, TrendingUp, DollarSign, Wrench, Trash2, Calendar, User, Bike, Edit, ChevronDown, ChevronUp, Filter, Receipt, Copy, Printer, Check, Download, X, Menu, Tag } from 'lucide-react';
+import { PlusCircle, LogOut, TrendingUp, DollarSign, Wrench, Trash2, Calendar, User, Bike, Edit, ChevronDown, ChevronUp, Filter, Receipt, Copy, Printer, Check, Download, X, Tag } from 'lucide-react';
 import Image from 'next/image';
 
 const SHOP_TARGET = 25000;
@@ -67,11 +67,8 @@ export default function Home() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
 
-  // Navigation Drawer & Pricing Modal
-  const [menuOpen, setMenuOpen] = useState(false);
+  // Pricing Modal State
   const [showPricingModal, setShowPricingModal] = useState(false);
-
-  // Pricing Form States
   const [editingPreset, setEditingPreset] = useState<ServicePreset | null>(null);
   const [presetName, setPresetName] = useState('');
   const [presetBaseLabor, setPresetBaseLabor] = useState<number | ''>('');
@@ -148,7 +145,6 @@ export default function Home() {
   };
 
   const handleLogout = async () => {
-    setMenuOpen(false);
     await supabase.auth.signOut();
   };
 
@@ -593,17 +589,9 @@ export default function Home() {
   // DASHBOARD & LOG BOOK VIEW
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 pb-28 print:bg-white print:text-black print:pb-0">
-      {/* Header with Hamburger Menu Button */}
+      {/* Header with Labor Pricing on Top Right */}
       <header className="bg-slate-900/95 backdrop-blur border-b border-slate-800/80 px-4 py-3 sticky top-0 z-30 flex justify-between items-center print:hidden">
         <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => setMenuOpen(true)}
-            className="p-2 text-slate-300 hover:text-white rounded-xl active:bg-slate-800 transition -ml-1.5"
-            title="Open Menu"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-
           <Image
             src="/logo.png"
             alt="96 Works Logo"
@@ -612,12 +600,24 @@ export default function Home() {
             className="h-8 sm:h-9 w-auto object-contain"
             priority
           />
-          <span className="text-[10px] sm:text-xs text-slate-400 border-l border-slate-700 pl-2 hidden min-[380px]:inline">
+          <span className="text-[10px] sm:text-xs text-slate-400 border-l border-slate-700 pl-2 hidden min-[420px]:inline">
             Shop Tracker
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Top-Right Action Buttons */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Labor Pricing Button */}
+          <button
+            onClick={() => setShowPricingModal(true)}
+            className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 font-semibold px-2.5 py-2 rounded-xl text-xs sm:text-sm transition shadow-sm"
+            title="Labor Pricing & Presets"
+          >
+            <Tag className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden min-[360px]:inline">Pricing</span>
+          </button>
+
+          {/* Log Job Button */}
           <button
             onClick={() => {
               resetJobForm();
@@ -628,101 +628,19 @@ export default function Home() {
             <PlusCircle className="w-4 h-4" />
             <span>Log Job</span>
           </button>
+
+          {/* Sign Out Button */}
+          <button
+            onClick={handleLogout}
+            className="p-2 text-slate-400 hover:text-white rounded-xl active:bg-slate-800 transition"
+            title="Sign Out"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </header>
 
-      {/* SLIDE-OUT MENU DRAWER */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-50 flex">
-          <div
-            className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity"
-            onClick={() => setMenuOpen(false)}
-          />
-
-          <div className="relative w-72 max-w-[85vw] bg-slate-900 border-r border-slate-800 h-full p-5 flex flex-col justify-between shadow-2xl z-10">
-            <div className="space-y-6">
-              <div className="flex justify-between items-center pb-3 border-b border-slate-800">
-                <Image
-                  src="/logo.png"
-                  alt="96 Works Logo"
-                  width={110}
-                  height={45}
-                  className="h-9 w-auto object-contain"
-                  priority
-                />
-                <button
-                  onClick={() => setMenuOpen(false)}
-                  className="p-1.5 text-slate-400 hover:text-white rounded-lg"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <nav className="space-y-1 text-sm font-semibold">
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition text-left"
-                >
-                  <TrendingUp className="w-4 h-4 text-amber-500" />
-                  <span>Dashboard & ROI</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    resetJobForm();
-                    setMenuOpen(false);
-                    setShowAddModal(true);
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition text-left"
-                >
-                  <PlusCircle className="w-4 h-4 text-amber-500" />
-                  <span>Add New Log</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    const historyElement = document.getElementById('log-history-section');
-                    if (historyElement) {
-                      historyElement.scrollIntoView({ behavior: 'smooth' });
-                    }
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition text-left"
-                >
-                  <Calendar className="w-4 h-4 text-amber-500" />
-                  <span>View History Logs</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setShowPricingModal(true);
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition text-left"
-                >
-                  <Tag className="w-4 h-4 text-amber-400" />
-                  <span>Labor Pricing & Presets</span>
-                </button>
-              </nav>
-            </div>
-
-            <div className="pt-4 border-t border-slate-800">
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-red-400 hover:bg-red-950/30 rounded-xl transition text-left"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Sign Out ({session.user?.email})</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Single-Dashboard Screen */}
+      {/* Main Content Dashboard */}
       <div className="max-w-4xl mx-auto p-3.5 sm:p-5 space-y-4 sm:space-y-6 print:hidden">
         {/* All-time ROI Card */}
         <section className="bg-slate-900 border border-slate-800/90 rounded-2xl p-4 sm:p-5 shadow-lg">
@@ -1318,6 +1236,7 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* Services Section */}
               <div className="p-3 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-amber-400 uppercase tracking-wide">
@@ -1399,6 +1318,7 @@ export default function Home() {
                 ))}
               </div>
 
+              {/* Parts Section */}
               <div className="p-3 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-amber-400 uppercase tracking-wide">Parts Sold</span>
@@ -1440,6 +1360,7 @@ export default function Home() {
                 ))}
               </div>
 
+              {/* Totals Summary */}
               <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3 space-y-1 text-xs">
                 <div className="flex justify-between text-slate-300">
                   <span>Labor Total:</span>
