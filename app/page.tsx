@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
-import { PlusCircle, LogOut, TrendingUp, DollarSign, Wrench, Trash2, Calendar, User, Bike, Edit, ChevronDown, ChevronUp, Filter } from 'lucide-react';
+import { PlusCircle, LogOut, TrendingUp, DollarSign, Wrench, Trash2, Calendar, User, Bike, Edit, ChevronDown, ChevronUp, Filter, Receipt, Copy, Printer, Check } from 'lucide-react';
 import Image from 'next/image';
 
 const SHOP_TARGET = 25000;
@@ -66,6 +66,10 @@ export default function Home() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+
+  // Receipt Modal State
+  const [receiptJob, setReceiptJob] = useState<Job | null>(null);
+  const [copiedReceipt, setCopiedReceipt] = useState(false);
 
   // Date Filtering State
   const [dateFilter, setDateFilter] = useState<DateFilterType>('all');
@@ -154,7 +158,7 @@ export default function Home() {
     setCustomerName(job.customer_name);
     setUnit(job.unit || '');
     setMechanic(job.mechanic || '');
-    
+
     if (job.services_breakdown && job.services_breakdown.length > 0) {
       setSelectedServices(job.services_breakdown);
     } else {
@@ -190,7 +194,6 @@ export default function Home() {
     }
   };
 
-  // Service Row Handlers
   const handleAddServiceRow = () => {
     setSelectedServices([
       ...selectedServices,
@@ -244,7 +247,6 @@ export default function Home() {
     setSelectedServices(updated);
   };
 
-  // Parts Row Handlers
   const handleAddPartRow = () => {
     setPartsList([...partsList, { name: '', price: 0 }]);
   };
@@ -321,6 +323,42 @@ export default function Home() {
     }
   };
 
+  // Build plain-text format for Messenger / SMS
+  const copyReceiptToClipboard = (job: Job) => {
+    let text = `==============================\n       🏍️ 96 WORKS 🏍️\n   Motorcycle Service & Parts\n==============================\n`;
+    text += `Date: ${job.job_date || new Date(job.created_at).toLocaleDateString()}\n`;
+    text += `Customer: ${job.customer_name}\n`;
+    text += `Unit: ${job.unit || 'N/A'}\n`;
+    text += `Mechanic: ${job.mechanic || 'Unassigned'}\n`;
+    text += `------------------------------\n`;
+
+    if (job.services_breakdown && job.services_breakdown.length > 0) {
+      text += `SERVICES:\n`;
+      job.services_breakdown.forEach((s) => {
+        text += `• ${s.name} - ₱${Number(s.customer_labor).toLocaleString()}\n`;
+      });
+    } else {
+      text += `SERVICES: ${job.service_name} - ₱${Number(job.customer_labor).toLocaleString()}\n`;
+    }
+
+    if (job.parts_breakdown && job.parts_breakdown.length > 0) {
+      text += `\nPARTS SOLD:\n`;
+      job.parts_breakdown.forEach((p) => {
+        text += `• ${p.name || 'Part'} - ₱${Number(p.price).toLocaleString()}\n`;
+      });
+    }
+
+    text += `------------------------------\n`;
+    text += `TOTAL AMOUNT: ₱${Number(job.total_sale).toLocaleString()}\n`;
+    text += `STATUS: Paid\n`;
+    if (job.notes) text += `Remarks: ${job.notes}\n`;
+    text += `==============================\nThank you for choosing 96 Works!`;
+
+    navigator.clipboard.writeText(text);
+    setCopiedReceipt(true);
+    setTimeout(() => setCopiedReceipt(false), 2500);
+  };
+
   // Date Filtering Logic
   const filteredJobs = useMemo(() => {
     if (dateFilter === 'all') return jobs;
@@ -338,14 +376,14 @@ export default function Home() {
       if (dateFilter === 'week') {
         const d = new Date(jDate);
         const day = now.getDay();
-        const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Start on Monday
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1);
         const monday = new Date(now.setDate(diff));
         monday.setHours(0, 0, 0, 0);
         return d >= monday;
       }
 
       if (dateFilter === 'month') {
-        const currentMonth = todayStr.substring(0, 7); // YYYY-MM
+        const currentMonth = todayStr.substring(0, 7);
         return jDate.startsWith(currentMonth);
       }
 
@@ -361,12 +399,10 @@ export default function Home() {
     });
   }, [jobs, dateFilter, customStartDate, customEndDate]);
 
-  // All-time aggregates (For Target & Splits)
   const totalRecovered = jobs.reduce((sum, j) => sum + Number(j.recovery_fee || 0), 0);
   const remainingTarget = Math.max(0, SHOP_TARGET - totalRecovered);
   const progressPercent = Math.min(100, (totalRecovered / SHOP_TARGET) * 100);
 
-  // Filtered period aggregates
   const filteredLaborRevenue = filteredJobs.reduce((sum, j) => sum + Number(j.customer_labor || 0), 0);
   const filteredPartsRevenue = filteredJobs.reduce((sum, j) => sum + Number(j.parts_sales || 0), 0);
   const filteredRecoveryTotal = filteredJobs.reduce((sum, j) => sum + Number(j.recovery_fee || 0), 0);
@@ -438,8 +474,9 @@ export default function Home() {
 
   // DASHBOARD & LOG BOOK VIEW
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 pb-24">
-      <header className="bg-slate-900 border-b border-slate-800 px-4 py-3 sticky top-0 z-30 flex justify-between items-center">
+    <main className="min-h-screen bg-slate-950 text-slate-100 pb-24 print:bg-white print:text-black print:pb-0">
+      {/* Header - Hidden when printing */}
+      <header className="bg-slate-900 border-b border-slate-800 px-4 py-3 sticky top-0 z-30 flex justify-between items-center print:hidden">
         <div className="flex items-center gap-3">
           <Image
             src="/logo.png"
@@ -474,8 +511,9 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto p-4 space-y-6">
-        {/* Target Progress Card (All-time Target) */}
+      {/* Main Dashboard Screen - Hidden when printing */}
+      <div className="max-w-4xl mx-auto p-4 space-y-6 print:hidden">
+        {/* Target Progress Card */}
         <section className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
           <div className="flex justify-between items-baseline mb-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1">
@@ -524,7 +562,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* DATE RANGE FILTER BAR */}
+        {/* Date Filter Bar */}
         <section className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-3 shadow-md">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -535,7 +573,6 @@ export default function Home() {
             </span>
           </div>
 
-          {/* Quick Buttons */}
           <div className="grid grid-cols-5 gap-1.5">
             {[
               { id: 'today', label: 'Today' },
@@ -558,7 +595,6 @@ export default function Home() {
             ))}
           </div>
 
-          {/* Custom Date Pickers */}
           {dateFilter === 'custom' && (
             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-xs">
               <div>
@@ -692,21 +728,31 @@ export default function Home() {
                           </div>
                         )}
 
-                        <div className="flex justify-end gap-2 pt-2 border-t border-slate-800/80">
+                        {/* Action Buttons: Receipt, Edit, Delete */}
+                        <div className="flex justify-end gap-2 pt-2 border-t border-slate-800/80 flex-wrap">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setReceiptJob(job);
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-semibold transition"
+                          >
+                            <Receipt className="w-3.5 h-3.5" /> View Receipt
+                          </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               openEditModal(job);
                             }}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-lg text-xs font-semibold transition"
+                            className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition"
                           >
-                            <Edit className="w-3.5 h-3.5" /> Edit Log
+                            <Edit className="w-3.5 h-3.5" /> Edit
                           </button>
                           <button
                             onClick={(e) => handleDeleteJob(job.id, e)}
                             className="flex items-center gap-1 px-3 py-1.5 bg-red-950/40 hover:bg-red-900/60 text-red-400 rounded-lg text-xs font-semibold transition"
                           >
-                            <Trash2 className="w-3.5 h-3.5" /> Delete Log
+                            <Trash2 className="w-3.5 h-3.5" /> Delete
                           </button>
                         </div>
                       </div>
@@ -725,10 +771,134 @@ export default function Home() {
           resetForm();
           setShowAddModal(true);
         }}
-        className="fixed bottom-5 right-5 sm:hidden bg-amber-500 text-slate-950 p-3.5 rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-95 transition"
+        className="fixed bottom-5 right-5 sm:hidden bg-amber-500 text-slate-950 p-3.5 rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-95 transition print:hidden"
       >
         <PlusCircle className="w-7 h-7" />
       </button>
+
+      {/* DIGITAL THERMAL RECEIPT MODAL */}
+      {receiptJob && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 z-50 overflow-y-auto">
+          <div className="bg-white text-slate-950 rounded-2xl w-full max-w-sm p-6 shadow-2xl space-y-4 print:p-0 print:shadow-none print:w-full">
+            
+            {/* Receipt Content Area */}
+            <div id="thermal-receipt" className="font-mono text-xs space-y-3">
+              {/* Header */}
+              <div className="text-center pb-3 border-b-2 border-dashed border-slate-300">
+                <div className="font-black text-xl tracking-wider text-black">96 WORKS</div>
+                <div className="text-[10px] uppercase text-slate-600">Motorcycle Service & Parts</div>
+                <div className="text-[10px] text-slate-500 mt-1">Official Shop Receipt</div>
+              </div>
+
+              {/* Meta details */}
+              <div className="space-y-1 text-[11px] pb-3 border-b border-dashed border-slate-300">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Date:</span>
+                  <span>{receiptJob.job_date || new Date(receiptJob.created_at).toLocaleDateString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Customer:</span>
+                  <span className="font-bold">{receiptJob.customer_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Unit:</span>
+                  <span>{receiptJob.unit || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Mechanic:</span>
+                  <span>{receiptJob.mechanic || 'Unassigned'}</span>
+                </div>
+              </div>
+
+              {/* Services Breakdown */}
+              <div className="space-y-1">
+                <span className="font-bold text-[10px] tracking-wider uppercase text-slate-600 block">Labor & Services</span>
+                {receiptJob.services_breakdown && receiptJob.services_breakdown.length > 0 ? (
+                  receiptJob.services_breakdown.map((s, idx) => (
+                    <div key={idx} className="flex justify-between">
+                      <span className="truncate pr-2">{s.name}</span>
+                      <span className="font-semibold">₱{Number(s.customer_labor).toLocaleString()}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex justify-between">
+                    <span>{receiptJob.service_name}</span>
+                    <span className="font-semibold">₱{Number(receiptJob.customer_labor).toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Parts Breakdown */}
+              {receiptJob.parts_breakdown && receiptJob.parts_breakdown.length > 0 && (
+                <div className="space-y-1 pt-2 border-t border-dashed border-slate-200">
+                  <span className="font-bold text-[10px] tracking-wider uppercase text-slate-600 block">Parts & Consumables</span>
+                  {receiptJob.parts_breakdown.map((p, idx) => (
+                    <div key={idx} className="flex justify-between">
+                      <span className="truncate pr-2">{p.name || 'Part item'}</span>
+                      <span className="font-semibold">₱{Number(p.price).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Totals */}
+              <div className="pt-3 border-t-2 border-dashed border-slate-300 space-y-1">
+                <div className="flex justify-between text-slate-600 text-[11px]">
+                  <span>Subtotal Labor:</span>
+                  <span>₱{Number(receiptJob.customer_labor).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-slate-600 text-[11px]">
+                  <span>Subtotal Parts:</span>
+                  <span>₱{Number(receiptJob.parts_sales).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-base font-black pt-1 border-t border-slate-900 text-black">
+                  <span>TOTAL PAID:</span>
+                  <span>₱{Number(receiptJob.total_sale).toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Notes */}
+              {receiptJob.notes && (
+                <div className="text-[10px] text-slate-500 italic pt-1 border-t border-dashed border-slate-200">
+                  Remarks: {receiptJob.notes}
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className="text-center pt-3 border-t-2 border-dashed border-slate-300 text-[10px] text-slate-500">
+                <div>Ride safe and thank you!</div>
+                <div>Keep receipt for service warranty.</div>
+              </div>
+            </div>
+
+            {/* Modal Actions - Hidden when printing */}
+            <div className="space-y-2 pt-2 border-t border-slate-200 print:hidden font-sans">
+              <button
+                onClick={() => copyReceiptToClipboard(receiptJob)}
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 shadow-sm transition"
+              >
+                {copiedReceipt ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+                {copiedReceipt ? 'Copied to Clipboard!' : 'Copy for Messenger / SMS'}
+              </button>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg text-xs flex items-center justify-center gap-1.5 transition"
+                >
+                  <Printer className="w-4 h-4" /> Print Receipt
+                </button>
+                <button
+                  onClick={() => setReceiptJob(null)}
+                  className="py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold rounded-lg text-xs transition"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create / Edit Job Modal */}
       {(showAddModal || editingJob) && (
@@ -739,7 +909,6 @@ export default function Home() {
             </h3>
 
             <form onSubmit={handleSaveJob} className="space-y-4">
-              {/* Date & Mechanic */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">Date</label>
@@ -763,7 +932,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Customer Name & Unit */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">Customer Name</label>
@@ -788,7 +956,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Multiple Services Section */}
+              {/* Services Section */}
               <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-amber-400 uppercase tracking-wide">
@@ -870,7 +1038,7 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Multiple Parts Section */}
+              {/* Parts Section */}
               <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-amber-400 uppercase tracking-wide">Parts Sold</span>
@@ -912,7 +1080,7 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Calculator Summary */}
+              {/* Totals Summary */}
               <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 space-y-1.5 text-xs">
                 <div className="flex justify-between text-slate-300">
                   <span>Labor Total:</span>
@@ -932,7 +1100,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Notes */}
               <div>
                 <input
                   type="text"
@@ -943,7 +1110,6 @@ export default function Home() {
                 />
               </div>
 
-              {/* Actions */}
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
