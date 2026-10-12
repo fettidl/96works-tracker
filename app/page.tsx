@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { PlusCircle, LogOut, TrendingUp, DollarSign, Wrench, Trash2, Calendar, User, Bike } from 'lucide-react';
+import { PlusCircle, LogOut, TrendingUp, DollarSign, Wrench, Trash2, Calendar, User, Bike, Edit, ChevronDown, ChevronUp } from 'lucide-react';
 import Image from 'next/image';
 
 const SHOP_TARGET = 25000;
-const USER_SPLIT_PERCENT = 0.40;   // 40% (₱10,000 share)
-const PARTNER_SPLIT_PERCENT = 0.60; // 60% (₱15,000 share)
+const USER_SPLIT_PERCENT = 0.40;
+const PARTNER_SPLIT_PERCENT = 0.60;
 
 interface ServicePreset {
   id: string;
@@ -63,19 +63,19 @@ export default function Home() {
   const [presetServices, setPresetServices] = useState<ServicePreset[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
 
-  // Form states
+  // Editing state
+  const [editingJob, setEditingJob] = useState<Job | null>(null);
+
+  // Form states (Used for both Create and Edit)
   const [jobDate, setJobDate] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [unit, setUnit] = useState('');
   const [mechanic, setMechanic] = useState('');
-
-  // Multiple Services dynamic list
   const [selectedServices, setSelectedServices] = useState<ServiceItem[]>([
     { name: '', base_labor: 0, recovery_fee: 0, customer_labor: 0, is_custom: false },
   ]);
-
-  // Multiple Parts dynamic list
   const [partsList, setPartsList] = useState<PartItem[]>([{ name: '', price: 0 }]);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -125,6 +125,60 @@ export default function Home() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+  };
+
+  const resetForm = () => {
+    setJobDate(new Date().toISOString().split('T')[0]);
+    setCustomerName('');
+    setUnit('');
+    setMechanic('');
+    setSelectedServices([{ name: '', base_labor: 0, recovery_fee: 0, customer_labor: 0, is_custom: false }]);
+    setPartsList([{ name: '', price: 0 }]);
+    setNotes('');
+    setEditingJob(null);
+  };
+
+  const openEditModal = (job: Job) => {
+    setEditingJob(job);
+    setJobDate(job.job_date || new Date(job.created_at).toISOString().split('T')[0]);
+    setCustomerName(job.customer_name);
+    setUnit(job.unit || '');
+    setMechanic(job.mechanic || '');
+    
+    // Fallback if services_breakdown was empty in older rows
+    if (job.services_breakdown && job.services_breakdown.length > 0) {
+      setSelectedServices(job.services_breakdown);
+    } else {
+      setSelectedServices([
+        {
+          name: job.service_name,
+          base_labor: Number(job.base_labor || 0),
+          recovery_fee: Number(job.recovery_fee || 0),
+          customer_labor: Number(job.customer_labor || 0),
+          is_custom: true,
+        },
+      ]);
+    }
+
+    if (job.parts_breakdown && job.parts_breakdown.length > 0) {
+      setPartsList(job.parts_breakdown);
+    } else {
+      setPartsList([{ name: '', price: Number(job.parts_sales || 0) }]);
+    }
+
+    setNotes(job.notes || '');
+  };
+
+  const handleDeleteJob = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm('Are you sure you want to delete this job log? This action cannot be undone.')) {
+      const { error } = await supabase.from('jobs').delete().eq('id', id);
+      if (!error) {
+        setJobs(jobs.filter((j) => j.id !== id));
+      } else {
+        alert('Error deleting: ' + error.message);
+      }
+    }
   };
 
   // Service Row Handlers
@@ -197,7 +251,7 @@ export default function Home() {
     setPartsList(updated);
   };
 
-  // Calculated totals for form
+  // Form totals
   const validServices = selectedServices.filter((s) => s.name.trim() !== '');
   const currentBaseLabor = validServices.reduce((sum, s) => sum + s.base_labor, 0);
   const currentRecoveryFee = validServices.reduce((sum, s) => sum + s.recovery_fee, 0);
@@ -207,7 +261,7 @@ export default function Home() {
   const currentPartsTotal = validParts.reduce((sum, p) => sum + Number(p.price || 0), 0);
   const currentTotalCustomerPay = currentLaborTotal + currentPartsTotal;
 
-  const handleCreateJob = async (e: React.FormEvent) => {
+  const handleSaveJob = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerName) {
       alert('Please enter a customer name');
@@ -221,40 +275,41 @@ export default function Home() {
     setIsSubmitting(true);
     const combinedServiceName = validServices.map((s) => s.name).join(' + ');
 
-    const { error } = await supabase.from('jobs').insert([
-      {
-        job_date: jobDate,
-        customer_name: customerName,
-        unit: unit.trim() || 'N/A',
-        mechanic: mechanic.trim() || 'Unassigned',
-        service_id: validServices[0].id || null,
-        service_name: combinedServiceName,
-        base_labor: currentBaseLabor,
-        recovery_fee: currentRecoveryFee,
-        customer_labor: currentLaborTotal,
-        parts_sales: currentPartsTotal,
-        parts_breakdown: validParts,
-        services_breakdown: validServices,
-        total_sale: currentTotalCustomerPay,
-        notes: notes,
-        payment_status: 'Paid',
-      },
-    ]);
+    const payload = {
+      job_date: jobDate,
+      customer_name: customerName,
+      unit: unit.trim() || 'N/A',
+      mechanic: mechanic.trim() || 'Unassigned',
+      service_id: validServices[0].id || null,
+      service_name: combinedServiceName,
+      base_labor: currentBaseLabor,
+      recovery_fee: currentRecoveryFee,
+      customer_labor: currentLaborTotal,
+      parts_sales: currentPartsTotal,
+      parts_breakdown: validParts,
+      services_breakdown: validServices,
+      total_sale: currentTotalCustomerPay,
+      notes: notes,
+      payment_status: 'Paid',
+    };
+
+    let responseError;
+    if (editingJob) {
+      const { error } = await supabase.from('jobs').update(payload).eq('id', editingJob.id);
+      responseError = error;
+    } else {
+      const { error } = await supabase.from('jobs').insert([payload]);
+      responseError = error;
+    }
 
     setIsSubmitting(false);
 
-    if (!error) {
-      // Reset form
-      setCustomerName('');
-      setUnit('');
-      setMechanic('');
-      setSelectedServices([{ name: '', base_labor: 0, recovery_fee: 0, customer_labor: 0, is_custom: false }]);
-      setPartsList([{ name: '', price: 0 }]);
-      setNotes('');
+    if (!responseError) {
+      resetForm();
       setShowAddModal(false);
       loadData();
     } else {
-      alert('Error creating job: ' + error.message);
+      alert('Error saving job: ' + responseError.message);
     }
   };
 
@@ -279,16 +334,16 @@ export default function Home() {
       <main className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
         <div className="bg-slate-800 p-8 rounded-2xl shadow-xl w-full max-w-sm border border-slate-700">
           <div className="text-center mb-6 flex flex-col items-center">
-  <Image
-    src="/logo.png"
-    alt="96 Works Logo"
-    width={140}
-    height={60}
-    className="h-14 w-auto object-contain mx-auto mb-2"
-    priority
-  />
-  <p className="text-slate-400 text-xs">Shop Tracker & ROI System</p>
-</div>
+            <Image
+              src="/logo.png"
+              alt="96 Works Logo"
+              width={140}
+              height={60}
+              className="h-14 w-auto object-contain mx-auto mb-2"
+              priority
+            />
+            <p className="text-slate-400 text-xs">Shop Tracker & ROI System</p>
+          </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             {authError && (
@@ -335,21 +390,24 @@ export default function Home() {
     <main className="min-h-screen bg-slate-950 text-slate-100 pb-24">
       <header className="bg-slate-900 border-b border-slate-800 px-4 py-3 sticky top-0 z-30 flex justify-between items-center">
         <div className="flex items-center gap-3">
-  <Image
-    src="/logo.png"
-    alt="96 Works Logo"
-    width={100}
-    height={40}
-    className="h-9 w-auto object-contain"
-    priority
-  />
-  <span className="text-[11px] text-slate-400 border-l border-slate-700 pl-2.5 hidden sm:inline">
-    Shop Tracker & Log Book
-  </span>
-</div>
+          <Image
+            src="/logo.png"
+            alt="96 Works Logo"
+            width={100}
+            height={40}
+            className="h-9 w-auto object-contain"
+            priority
+          />
+          <span className="text-[11px] text-slate-400 border-l border-slate-700 pl-2.5 hidden sm:inline">
+            Shop Tracker & Log Book
+          </span>
+        </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={() => {
+              resetForm();
+              setShowAddModal(true);
+            }}
             className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold px-3 py-1.5 rounded-lg text-sm shadow-md transition"
           >
             <PlusCircle className="w-4 h-4" />
@@ -434,7 +492,9 @@ export default function Home() {
         {/* Log History */}
         <section className="space-y-3">
           <div className="flex justify-between items-center">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">Log History ({jobs.length})</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
+              Log History ({jobs.length}) <span className="text-xs font-normal lowercase text-slate-500">(tap log to view items)</span>
+            </h2>
           </div>
 
           {jobs.length === 0 ? (
@@ -443,32 +503,105 @@ export default function Home() {
             </div>
           ) : (
             <div className="space-y-3">
-              {jobs.map((job) => (
-                <div key={job.id} className="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="font-bold text-white text-base">{job.customer_name}</div>
-                      <div className="text-xs text-amber-400 font-semibold">{job.service_name}</div>
+              {jobs.map((job) => {
+                const isExpanded = expandedJobId === job.id;
+                return (
+                  <div
+                    key={job.id}
+                    onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
+                    className="bg-slate-900 border border-slate-800 hover:border-slate-700 p-4 rounded-xl space-y-2 cursor-pointer transition"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-bold text-white text-base">{job.customer_name}</div>
+                        <div className="text-xs text-amber-400 font-semibold">{job.service_name}</div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="text-right">
+                          <div className="text-base font-extrabold text-white">₱{Number(job.total_sale).toLocaleString()}</div>
+                          <div className="text-xs text-emerald-400 font-medium">+₱{Number(job.recovery_fee)} ROI</div>
+                        </div>
+                        <div className="text-slate-500 pt-1">
+                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-base font-extrabold text-white">₱{Number(job.total_sale).toLocaleString()}</div>
-                      <div className="text-xs text-emerald-400 font-medium">+₱{Number(job.recovery_fee)} ROI</div>
+
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400 pt-1 border-t border-slate-800/60">
+                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-slate-500" /> {job.job_date || new Date(job.created_at).toLocaleDateString()}</span>
+                      <span className="flex items-center gap-1"><Bike className="w-3 h-3 text-slate-500" /> {job.unit || 'N/A'}</span>
+                      <span className="flex items-center gap-1"><User className="w-3 h-3 text-slate-500" /> Mech: {job.mechanic || 'N/A'}</span>
                     </div>
-                  </div>
 
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400 pt-1 border-t border-slate-800/60">
-                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-slate-500" /> {job.job_date || new Date(job.created_at).toLocaleDateString()}</span>
-                    <span className="flex items-center gap-1"><Bike className="w-3 h-3 text-slate-500" /> {job.unit || 'N/A'}</span>
-                    <span className="flex items-center gap-1"><User className="w-3 h-3 text-slate-500" /> Mech: {job.mechanic || 'N/A'}</span>
-                  </div>
+                    <div className="flex justify-between text-xs text-slate-400 pt-1 bg-slate-950/40 px-2 py-1 rounded">
+                      <span>Labor: ₱{Number(job.customer_labor).toLocaleString()}</span>
+                      <span>Parts: ₱{Number(job.parts_sales).toLocaleString()}</span>
+                    </div>
 
-                  <div className="flex justify-between text-xs text-slate-400 pt-1 bg-slate-950/40 px-2 py-1 rounded">
-                    <span>Labor: ₱{Number(job.customer_labor).toLocaleString()}</span>
-                    <span>Parts: ₱{Number(job.parts_sales).toLocaleString()}</span>
-                    {job.notes && <span className="italic text-slate-500 truncate max-w-[150px]">{job.notes}</span>}
+                    {/* Expanded Details Section */}
+                    {isExpanded && (
+                      <div className="mt-3 pt-3 border-t border-slate-800 space-y-2.5 text-xs text-slate-300">
+                        {/* Parts Sold Breakdown */}
+                        <div>
+                          <span className="font-semibold text-amber-400 block mb-1">Parts Sold Breakdown:</span>
+                          {job.parts_breakdown && job.parts_breakdown.length > 0 ? (
+                            <ul className="space-y-1 pl-2 border-l-2 border-slate-800">
+                              {job.parts_breakdown.map((part, pIdx) => (
+                                <li key={pIdx} className="flex justify-between">
+                                  <span>{part.name || 'Unnamed part'}</span>
+                                  <span className="font-medium text-slate-200">₱{Number(part.price).toLocaleString()}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <div className="text-slate-500 italic pl-2">No individual parts recorded (₱{Number(job.parts_sales).toLocaleString()})</div>
+                          )}
+                        </div>
+
+                        {/* Services Breakdown */}
+                        {job.services_breakdown && job.services_breakdown.length > 0 && (
+                          <div>
+                            <span className="font-semibold text-amber-400 block mb-1">Services Breakdown:</span>
+                            <ul className="space-y-1 pl-2 border-l-2 border-slate-800">
+                              {job.services_breakdown.map((srv, sIdx) => (
+                                <li key={sIdx} className="flex justify-between">
+                                  <span>{srv.name}</span>
+                                  <span className="font-medium text-slate-200">₱{Number(srv.customer_labor).toLocaleString()} (Rec: ₱{srv.recovery_fee})</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {job.notes && (
+                          <div className="bg-slate-950 p-2 rounded text-slate-400 italic">
+                            Notes: {job.notes}
+                          </div>
+                        )}
+
+                        {/* Action Buttons: Edit and Delete */}
+                        <div className="flex justify-end gap-2 pt-2 border-t border-slate-800/80">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditModal(job);
+                            }}
+                            className="flex items-center gap-1 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-lg text-xs font-semibold transition"
+                          >
+                            <Edit className="w-3.5 h-3.5" /> Edit Log
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteJob(job.id, e)}
+                            className="flex items-center gap-1 px-3 py-1 bg-red-950/40 hover:bg-red-900/60 text-red-400 rounded-lg text-xs font-semibold transition"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Delete Log
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
@@ -476,19 +609,24 @@ export default function Home() {
 
       {/* Floating Add Job Button for Mobile */}
       <button
-        onClick={() => setShowAddModal(true)}
+        onClick={() => {
+          resetForm();
+          setShowAddModal(true);
+        }}
         className="fixed bottom-5 right-5 sm:hidden bg-amber-500 text-slate-950 p-3.5 rounded-full shadow-2xl flex items-center justify-center z-40 active:scale-95 transition"
       >
         <PlusCircle className="w-7 h-7" />
       </button>
 
-      {/* Log Job Modal */}
-      {showAddModal && (
+      {/* Create / Edit Job Modal */}
+      {(showAddModal || editingJob) && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-5 my-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold text-white mb-3">Log New Job & Calculate</h3>
+            <h3 className="text-lg font-bold text-white mb-3">
+              {editingJob ? 'Edit Log Entry' : 'Log New Job & Calculate'}
+            </h3>
 
-            <form onSubmit={handleCreateJob} className="space-y-4">
+            <form onSubmit={handleSaveJob} className="space-y-4">
               {/* Date & Mechanic */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -582,7 +720,6 @@ export default function Home() {
                       )}
                     </div>
 
-                    {/* Custom service inputs if chosen */}
                     {srv.is_custom && (
                       <div className="space-y-2 pt-1 border-t border-slate-800/80">
                         <input
@@ -666,11 +803,11 @@ export default function Home() {
               {/* Live Calculator Summary Box */}
               <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 space-y-1.5 text-xs">
                 <div className="flex justify-between text-slate-300">
-                  <span>Labor Total ({validServices.length} service{validServices.length !== 1 ? 's' : ''}):</span>
+                  <span>Labor Total:</span>
                   <span className="font-semibold text-white">₱{currentLaborTotal.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-slate-300">
-                  <span>Parts Total ({validParts.length} item{validParts.length !== 1 ? 's' : ''}):</span>
+                  <span>Parts Total:</span>
                   <span className="font-semibold text-white">₱{currentPartsTotal.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-slate-300">
@@ -698,7 +835,10 @@ export default function Home() {
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    resetForm();
+                    setShowAddModal(false);
+                  }}
                   className="w-1/2 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs"
                 >
                   Cancel
@@ -708,7 +848,7 @@ export default function Home() {
                   disabled={isSubmitting}
                   className="w-1/2 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs shadow-md shadow-amber-500/20"
                 >
-                  {isSubmitting ? 'Saving...' : 'Save & Record Job'}
+                  {isSubmitting ? 'Saving...' : editingJob ? 'Update Log' : 'Save & Record Job'}
                 </button>
               </div>
             </form>
