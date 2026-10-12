@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
-import { PlusCircle, LogOut, TrendingUp, DollarSign, Wrench, Trash2, Calendar, User, Bike, Edit, ChevronDown, ChevronUp, Filter, Receipt, Copy, Printer, Check } from 'lucide-react';
+import { PlusCircle, LogOut, TrendingUp, DollarSign, Wrench, Trash2, Calendar, User, Bike, Edit, ChevronDown, ChevronUp, Filter, Receipt, Copy, Printer, Check, Download } from 'lucide-react';
 import Image from 'next/image';
 
 const SHOP_TARGET = 25000;
@@ -358,6 +358,7 @@ export default function Home() {
     setTimeout(() => setCopiedReceipt(false), 2500);
   };
 
+  // Date Filtering Logic
   const filteredJobs = useMemo(() => {
     if (dateFilter === 'all') return jobs;
 
@@ -404,6 +405,80 @@ export default function Home() {
   const filteredLaborRevenue = filteredJobs.reduce((sum, j) => sum + Number(j.customer_labor || 0), 0);
   const filteredPartsRevenue = filteredJobs.reduce((sum, j) => sum + Number(j.parts_sales || 0), 0);
   const filteredRecoveryTotal = filteredJobs.reduce((sum, j) => sum + Number(j.recovery_fee || 0), 0);
+  const filteredTotalRevenue = filteredJobs.reduce((sum, j) => sum + Number(j.total_sale || 0), 0);
+
+  // CSV Export Handler
+  const handleExportCSV = () => {
+    if (filteredJobs.length === 0) {
+      alert('No jobs to export for the selected period.');
+      return;
+    }
+
+    const headers = [
+      'Date',
+      'Customer',
+      'Unit',
+      'Mechanic',
+      'Services',
+      'Parts Sold',
+      'Labor (PHP)',
+      'Parts (PHP)',
+      'Shop Cut / ROI (PHP)',
+      'Total Paid (PHP)',
+      'Notes'
+    ];
+
+    const escapeCSV = (val: any) => {
+      const str = String(val ?? '').replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const rows = filteredJobs.map((job) => {
+      const partsSummary = job.parts_breakdown && job.parts_breakdown.length > 0
+        ? job.parts_breakdown.map((p) => `${p.name} (P${p.price})`).join('; ')
+        : (job.parts_sales > 0 ? `Parts (P${job.parts_sales})` : 'None');
+
+      return [
+        escapeCSV(job.job_date || new Date(job.created_at).toLocaleDateString()),
+        escapeCSV(job.customer_name),
+        escapeCSV(job.unit || 'N/A'),
+        escapeCSV(job.mechanic || 'Unassigned'),
+        escapeCSV(job.service_name),
+        escapeCSV(partsSummary),
+        Number(job.customer_labor || 0),
+        Number(job.parts_sales || 0),
+        Number(job.recovery_fee || 0),
+        Number(job.total_sale || 0),
+        escapeCSV(job.notes || '')
+      ].join(',');
+    });
+
+    // Summary Totals Row at the bottom
+    const summaryRow = [
+      escapeCSV('TOTALS'),
+      escapeCSV(`Total Jobs: ${filteredJobs.length}`),
+      escapeCSV(''),
+      escapeCSV(''),
+      escapeCSV(''),
+      escapeCSV(''),
+      filteredLaborRevenue,
+      filteredPartsRevenue,
+      filteredRecoveryTotal,
+      filteredTotalRevenue,
+      escapeCSV(`40% Split: P${(filteredRecoveryTotal * USER_SPLIT_PERCENT).toFixed(2)} | 60% Split: P${(filteredRecoveryTotal * PARTNER_SPLIT_PERCENT).toFixed(2)}`)
+    ].join(',');
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows, summaryRow].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `96works_report_${dateFilter}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   if (loading) {
     return (
@@ -559,15 +634,26 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Date Filter Bar */}
+        {/* Date Filter & Export Bar */}
         <section className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-3 shadow-md">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
               <Filter className="w-3.5 h-3.5" /> Filter by Period
             </span>
-            <span className="text-xs text-slate-400">
-              Showing: <span className="text-white font-medium">{filteredJobs.length} {filteredJobs.length === 1 ? 'Job' : 'Jobs'}</span>
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400">
+                <span className="text-white font-medium">{filteredJobs.length} {filteredJobs.length === 1 ? 'Job' : 'Jobs'}</span>
+              </span>
+              {/* CSV Export Button */}
+              <button
+                onClick={handleExportCSV}
+                className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/40 rounded-lg text-xs font-semibold transition shadow-sm"
+                title="Download CSV Spreadsheet Report"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Export</span> CSV
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-5 gap-1.5">
@@ -659,7 +745,6 @@ export default function Home() {
                     key={job.id}
                     className="bg-slate-900 border border-slate-800 hover:border-slate-700 p-4 rounded-xl space-y-2 transition"
                   >
-                    {/* Top Row: Details & Quick Buttons */}
                     <div className="flex justify-between items-start gap-2">
                       <div
                         onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
@@ -675,7 +760,6 @@ export default function Home() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {/* Instant Receipt Button */}
                         <button
                           onClick={() => setReceiptJob(job)}
                           className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-lg text-xs font-bold transition shadow-sm"
@@ -708,7 +792,6 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* Expanded view for parts and service breakdown */}
                     {isExpanded && (
                       <div className="mt-3 pt-3 border-t border-slate-800 space-y-2.5 text-xs text-slate-300">
                         <div>
@@ -787,19 +870,18 @@ export default function Home() {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 z-50 overflow-y-auto">
           <div className="bg-white text-slate-950 rounded-2xl w-full max-w-sm p-6 shadow-2xl space-y-4 print:p-0 print:shadow-none print:w-full">
             <div id="thermal-receipt" className="font-mono text-xs space-y-3">
-              {/* Header with Logo */}
-<div className="text-center pb-3 border-b-2 border-dashed border-slate-300 flex flex-col items-center">
-  <Image
-    src="/logo.png"
-    alt="96 Works Logo"
-    width={120}
-    height={48}
-    className="h-10 w-auto object-contain mx-auto mb-1"
-    priority
-  />
-  <div className="text-[10px] uppercase tracking-wide text-slate-600 font-semibold">Motorcycle Service & Parts</div>
-  <div className="text-[10px] text-slate-500 mt-0.5">Official Shop Receipt</div>
-</div>
+              <div className="text-center pb-3 border-b-2 border-dashed border-slate-300 flex flex-col items-center">
+                <Image
+                  src="/logo.png"
+                  alt="96 Works Logo"
+                  width={120}
+                  height={48}
+                  className="h-10 w-auto object-contain mx-auto mb-1"
+                  priority
+                />
+                <div className="text-[10px] uppercase tracking-wide text-slate-600 font-semibold">Motorcycle Service & Parts</div>
+                <div className="text-[10px] text-slate-500 mt-0.5">Official Shop Receipt</div>
+              </div>
 
               <div className="space-y-1 text-[11px] pb-3 border-b border-dashed border-slate-300">
                 <div className="flex justify-between">
@@ -928,7 +1010,7 @@ export default function Home() {
                   <label className="block text-xs font-semibold text-slate-300 mb-1">Assigned Mechanic</label>
                   <input
                     type="text"
-                    placeholder="e.g. Kuya Dan / Weweng"
+                    placeholder="e.g. Dan / Dedel"
                     value={mechanic}
                     onChange={(e) => setMechanic(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-base sm:text-xs focus:ring-2 focus:ring-amber-500"
